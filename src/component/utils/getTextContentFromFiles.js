@@ -28,7 +28,7 @@ const TEXT_SIZE_UPPER_BOUND = 5000;
  * Extract the text content from a file list.
  */
 function getTextContentFromFiles(
-  files: Array<File>,
+  files: $ReadOnlyArray<File>,
   callback: (contents: string) => void,
 ): void {
   let readCount = 0;

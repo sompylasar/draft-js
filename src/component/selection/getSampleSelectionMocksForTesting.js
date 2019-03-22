@@ -17,7 +17,6 @@ const ContentState = require('ContentState');
 const EditorState = require('EditorState');
 const {BOLD} = require('SampleDraftInlineStyle');
 
-const Immutable = require('immutable');
 const {EMPTY} = CharacterMetadata;
 
 const getSampleSelectionMocksForTesting = (): Object => {
@@ -41,26 +40,20 @@ const getSampleSelectionMocksForTesting = (): Object => {
   const textC = text[4] + text[5];
 
   const boldChar = CharacterMetadata.create({
-    style: BOLD,
+    style: new Set(BOLD),
   });
 
-  const aChars = Immutable.List(
-    Immutable.Repeat(EMPTY, text[0].length).concat(
-      Immutable.Repeat(boldChar, text[1].length),
-    ),
-  );
+  const aChars = new Array(text[0].length)
+    .fill(EMPTY)
+    .concat(new Array(text[1].length).fill(boldChar));
 
-  const bChars = Immutable.List(
-    Immutable.Repeat(EMPTY, text[2].length).concat(
-      Immutable.Repeat(boldChar, text[3].length),
-    ),
-  );
+  const bChars = new Array(text[2].length)
+    .fill(EMPTY)
+    .concat(new Array(text[3].length).fill(boldChar));
 
-  const cChars = Immutable.List(
-    Immutable.Repeat(EMPTY, text[4].length).concat(
-      Immutable.Repeat(boldChar, text[5].length),
-    ),
-  );
+  const cChars = new Array(text[4].length)
+    .fill(EMPTY)
+    .concat(new Array(text[5].length).fill(boldChar));
 
   const contentBlocks = [
     new ContentBlock({

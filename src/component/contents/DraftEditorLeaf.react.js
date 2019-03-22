@@ -146,7 +146,7 @@ class DraftEditorLeaf extends React.Component<Props> {
     }
 
     const {customStyleMap, customStyleFn, offsetKey, styleSet} = this.props;
-    let styleObj = styleSet.reduce((map, styleName) => {
+    let styleObj = Array.from(styleSet).reduce((map, styleName) => {
       const mergedStyles = {};
       const style = customStyleMap[styleName];
 

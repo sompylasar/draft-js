@@ -17,7 +17,6 @@ import type {DraftBlockRenderMap} from 'DraftBlockRenderMap';
 import type {DraftBlockType} from 'DraftBlockType';
 import type {EntityMap} from 'EntityMap';
 
-const ContentBlock = require('ContentBlock');
 const ContentBlockNode = require('ContentBlockNode');
 
 const convertFromHTMLToContentBlocksClassic = require('convertFromHTMLToContentBlocks');
@@ -25,15 +24,10 @@ const convertFromHTMLToContentBlocksNew = require('convertFromHTMLToContentBlock
 const generateRandomKey = require('generateRandomKey');
 const getSafeBodyFromHTML = require('getSafeBodyFromHTML');
 const gkx = require('gkx');
-const Immutable = require('immutable');
 const sanitizeDraftText = require('sanitizeDraftText');
-
-const {List, Repeat} = Immutable;
+const inheritAndUpdate = require('inheritAndUpdate');
 
 const experimentalTreeDataSupport = gkx('draft_tree_data_support');
-const ContentBlockRecord = experimentalTreeDataSupport
-  ? ContentBlockNode
-  : ContentBlock;
 
 const refactoredHTMLImporter = gkx('draft_refactored_html_importer');
 const convertFromHTMLToContentBlocks = refactoredHTMLImporter
@@ -65,25 +59,24 @@ const DraftPasteProcessor = {
         key,
         type,
         text: textLine,
-        characterList: List(Repeat(character, textLine.length)),
+        characterList: Array(textLine.length).fill(character),
       };
 
       // next block updates previous block
       if (experimentalTreeDataSupport && index !== 0) {
         const prevSiblingIndex = index - 1;
         // update previous block
-        const previousBlock = (acc[prevSiblingIndex] = acc[
-          prevSiblingIndex
-        ].merge({
+        acc[prevSiblingIndex] = inheritAndUpdate(acc[prevSiblingIndex], {
           nextSibling: key,
-        }));
+        });
+        const previousBlock = acc[prevSiblingIndex];
         blockNodeConfig = {
           ...blockNodeConfig,
           prevSibling: previousBlock.getKey(),
         };
       }
 
-      acc.push(new ContentBlockRecord(blockNodeConfig));
+      acc.push(new ContentBlockNode(blockNodeConfig));
 
       return acc;
     }, []);

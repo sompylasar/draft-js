@@ -11,32 +11,32 @@
 
 'use strict';
 
-const Immutable = require('immutable');
+const inheritAndUpdate = require('inheritAndUpdate');
 
-const {Record} = Immutable;
-
-const defaultRecord: {
-  anchorKey: string,
-  anchorOffset: number,
-  focusKey: string,
-  focusOffset: number,
-  isBackward: boolean,
-  hasFocus: boolean,
-} = {
-  anchorKey: '',
-  anchorOffset: 0,
-  focusKey: '',
-  focusOffset: 0,
-  isBackward: false,
-  hasFocus: false,
+export type SelectionStateConfig = {
+  // `$Shape` without the spread does not error on missing properties. https://github.com/facebook/flow/issues/5702
+  ...$Shape<{
+    anchorKey: string,
+    anchorOffset: number,
+    focusKey: string,
+    focusOffset: number,
+    isBackward: boolean,
+    hasFocus: boolean,
+  }>,
 };
 
-/* $FlowFixMe This comment suppresses an error found when automatically adding
- * a type annotation with the codemod Komodo/Annotate_exports. To see the error
- * delete this comment and run Flow. */
-const SelectionStateRecord = (Record(defaultRecord): any);
+class SelectionState {
+  anchorKey: string = '';
+  anchorOffset: number = 0;
+  focusKey: string = '';
+  focusOffset: number = 0;
+  isBackward: boolean = false;
+  hasFocus: boolean = false;
 
-class SelectionState extends SelectionStateRecord {
+  constructor(config?: SelectionStateConfig) {
+    Object.assign(this, config);
+  }
+
   serialize(): string {
     return (
       'Anchor: ' +
@@ -57,28 +57,39 @@ class SelectionState extends SelectionStateRecord {
     );
   }
 
+  toJS() {
+    return {
+      anchorKey: this.anchorKey,
+      anchorOffset: this.anchorOffset,
+      focusKey: this.focusKey,
+      focusOffset: this.focusOffset,
+      isBackward: this.isBackward,
+      hasFocus: this.hasFocus,
+    };
+  }
+
   getAnchorKey(): string {
-    return this.get('anchorKey');
+    return this.anchorKey;
   }
 
   getAnchorOffset(): number {
-    return this.get('anchorOffset');
+    return this.anchorOffset;
   }
 
   getFocusKey(): string {
-    return this.get('focusKey');
+    return this.focusKey;
   }
 
   getFocusOffset(): number {
-    return this.get('focusOffset');
+    return this.focusOffset;
   }
 
   getIsBackward(): boolean {
-    return this.get('isBackward');
+    return this.isBackward;
   }
 
   getHasFocus(): boolean {
-    return this.get('hasFocus');
+    return this.hasFocus;
   }
 
   /**
@@ -135,15 +146,26 @@ class SelectionState extends SelectionStateRecord {
       : this.getFocusOffset();
   }
 
-  static createEmpty(key: string): SelectionState {
+  merge(put: $Shape<SelectionStateConfig>): SelectionState {
+    return inheritAndUpdate(this, put);
+  }
+
+  static createEmpty(key?: string): SelectionState {
     return new SelectionState({
-      anchorKey: key,
+      anchorKey: key || '',
       anchorOffset: 0,
-      focusKey: key,
+      focusKey: key || '',
       focusOffset: 0,
       isBackward: false,
       hasFocus: false,
     });
+  }
+
+  static set(
+    selectionState: SelectionState,
+    put: $Shape<SelectionStateConfig>,
+  ): SelectionState {
+    return inheritAndUpdate(selectionState, put);
   }
 }
 

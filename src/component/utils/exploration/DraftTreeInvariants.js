@@ -77,7 +77,7 @@ const DraftTreeInvariants = {
 
     // if it's a leaf node, it has text but no children
     if (block.text != '') {
-      if (block.getChildKeys().size > 0) {
+      if (block.getChildKeys().length > 0) {
         warning(true, 'Leaf node %s has children', key);
         return false;
       }
@@ -93,12 +93,10 @@ const DraftTreeInvariants = {
    */
   isConnectedTree(blockMap: BlockMap): boolean {
     // exactly one node has no previous sibling + no parent
-    const eligibleFirstNodes = blockMap
-      .toArray()
-      .filter(
-        block =>
-          block.getParentKey() == null && block.getPrevSiblingKey() == null,
-      );
+    const eligibleFirstNodes = Array.from(blockMap.values()).filter(
+      block =>
+        block.getParentKey() == null && block.getPrevSiblingKey() == null,
+    );
     if (eligibleFirstNodes.length !== 1) {
       warning(true, 'Tree is not connected. More or less than one first node');
       return false;
@@ -153,7 +151,7 @@ const DraftTreeInvariants = {
    * Checks that the block map is a connected tree with valid blocks
    */
   isValidTree(blockMap: BlockMap): boolean {
-    const blocks = blockMap.toArray();
+    const blocks = Array.from(blockMap.values());
     if (!blocks.every(block => this.isValidBlock(block, blockMap))) {
       return false;
     }

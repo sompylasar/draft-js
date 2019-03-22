@@ -15,41 +15,65 @@ jest.disableAutomock();
 jest.mock('generateRandomKey');
 
 const DraftPasteProcessor = require('DraftPasteProcessor');
-const Immutable = require('immutable');
 
-const {OrderedSet, Map} = Immutable;
+const CUSTOM_BLOCK_MAP = new Map([
+  [
+    'header-one',
+    {
+      element: 'h1',
+    },
+  ],
+  [
+    'header-two',
+    {
+      element: 'h2',
+    },
+  ],
+  [
+    'header-three',
+    {
+      element: 'h3',
+    },
+  ],
+  [
+    'unordered-list-item',
+    {
+      element: 'li',
+    },
+  ],
+  [
+    'ordered-list-item',
+    {
+      element: 'li',
+    },
+  ],
+  [
+    'blockquote',
+    {
+      element: 'blockquote',
+    },
+  ],
+  [
+    'code-block',
+    {
+      element: 'pre',
+    },
+  ],
+  [
+    'paragraph',
+    {
+      element: 'p',
+    },
+  ],
+  [
+    'unstyled',
+    {
+      element: 'div',
+    },
+  ],
+]);
 
-const CUSTOM_BLOCK_MAP = Map({
-  'header-one': {
-    element: 'h1',
-  },
-  'header-two': {
-    element: 'h2',
-  },
-  'header-three': {
-    element: 'h3',
-  },
-  'unordered-list-item': {
-    element: 'li',
-  },
-  'ordered-list-item': {
-    element: 'li',
-  },
-  blockquote: {
-    element: 'blockquote',
-  },
-  'code-block': {
-    element: 'pre',
-  },
-  paragraph: {
-    element: 'p',
-  },
-  unstyled: {
-    element: 'div',
-  },
-});
-
-const EMPTY_CHAR_METADATA = OrderedSet();
+const EMPTY_CHAR_METADATA = new Set();
 
 const toggleExperimentalTreeDataSupport = enabled => {
   jest.doMock('gkx', () => name => {

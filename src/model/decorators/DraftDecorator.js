@@ -52,7 +52,7 @@ export type DraftDecorator = {
  */
 export type DraftDecoratorComponentProps = {
   blockKey: BlockNodeKey,
-  children?: Array<React.Node>,
+  children?: $ReadOnlyArray<React.Node>,
   contentState: ContentState,
   decoratedText: string,
   dir: ?HTMLDir,

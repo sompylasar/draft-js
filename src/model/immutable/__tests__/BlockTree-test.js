@@ -16,12 +16,9 @@ const BlockTree = require('BlockTree');
 const CharacterMetadata = require('CharacterMetadata');
 const ContentBlock = require('ContentBlock');
 const ContentState = require('ContentState');
-const Immutable = require('immutable');
 const {BOLD} = require('SampleDraftInlineStyle');
 
 const {EMPTY} = CharacterMetadata;
-
-const {Repeat} = Immutable;
 
 const PLAIN_BLOCK = {
   key: 'a',

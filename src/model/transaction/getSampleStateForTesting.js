@@ -16,7 +16,6 @@ const CharacterMetadata = require('CharacterMetadata');
 const ContentBlock = require('ContentBlock');
 const ContentState = require('ContentState');
 const EditorState = require('EditorState');
-const Immutable = require('immutable');
 const SampleDraftInlineStyle = require('SampleDraftInlineStyle');
 const SelectionState = require('SelectionState');
 
@@ -28,46 +27,40 @@ const BLOCKS = [
     key: 'a',
     type: 'unstyled',
     text: 'Alpha',
-    characterList: Immutable.List(Immutable.Repeat(CharacterMetadata.EMPTY, 5)),
+    characterList: Array(5).fill(CharacterMetadata.EMPTY),
   }),
   new ContentBlock({
     key: 'b',
     type: 'unordered-list-item',
     text: 'Bravo',
-    characterList: Immutable.List(
-      Immutable.Repeat(
-        CharacterMetadata.create({style: BOLD, entity: ENTITY_KEY}),
-        5,
-      ),
+    characterList: Array(5).fill(
+      CharacterMetadata.create({style: new Set(BOLD), entity: ENTITY_KEY}),
     ),
   }),
   new ContentBlock({
     key: 'c',
     type: 'code-block',
     text: 'Test',
-    characterList: Immutable.List(Immutable.Repeat(CharacterMetadata.EMPTY, 4)),
+    characterList: Array(4).fill(CharacterMetadata.EMPTY),
   }),
   new ContentBlock({
     key: 'd',
     type: 'code-block',
     text: '',
-    characterList: Immutable.List(),
+    characterList: [],
   }),
   new ContentBlock({
     key: 'e',
     type: 'code-block',
     text: '',
-    characterList: Immutable.List(),
+    characterList: [],
   }),
   new ContentBlock({
     key: 'f',
     type: 'blockquote',
     text: 'Charlie',
-    characterList: Immutable.List(
-      Immutable.Repeat(
-        CharacterMetadata.create({style: ITALIC, entity: null}),
-        7,
-      ),
+    characterList: Array(7).fill(
+      CharacterMetadata.create({style: new Set(ITALIC), entity: null}),
     ),
   }),
 ];
@@ -84,19 +77,15 @@ const selectionState = new SelectionState({
 const blockMap = BlockMapBuilder.createFromArray(BLOCKS);
 const contentState = new ContentState({
   blockMap,
-  entityMap: Immutable.OrderedMap(),
+  entityMap: new Map(),
   selectionBefore: selectionState,
   selectionAfter: selectionState,
-}).createEntity({
-  type: 'IMAGE',
-  mutability: 'IMMUTABLE',
-  data: null,
-});
+}).createEntity('IMAGE', 'IMMUTABLE', null);
 
 let editorState = EditorState.createWithContent(contentState);
 editorState = EditorState.forceSelection(editorState, selectionState);
 
-const getSampleStateForTesting = (): Object => {
+const getSampleStateForTesting = () => {
   return {editorState, contentState, selectionState};
 };
 

@@ -22,7 +22,6 @@ const DraftEntityInstance = require('DraftEntityInstance');
 
 const convertFromDraftStateToRaw = require('convertFromDraftStateToRaw');
 const getSampleStateForTesting = require('getSampleStateForTesting');
-const Immutable = require('immutable');
 
 const {contentState} = getSampleStateForTesting();
 

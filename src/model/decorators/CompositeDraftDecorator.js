@@ -15,10 +15,6 @@ import type {BlockNodeRecord} from 'BlockNodeRecord';
 import type ContentState from 'ContentState';
 import type {DraftDecorator} from 'DraftDecorator';
 
-const Immutable = require('immutable');
-
-const {List} = Immutable;
-
 const DELIMITER = '.';
 
 /**
@@ -53,7 +49,7 @@ class CompositeDraftDecorator {
   getDecorations(
     block: BlockNodeRecord,
     contentState: ContentState,
-  ): List<?string> {
+  ): Array<?string> {
     const decorations = Array(block.getText().length).fill(null);
 
     this._decorators.forEach((/*object*/ decorator, /*number*/ ii) => {
@@ -71,7 +67,7 @@ class CompositeDraftDecorator {
       strategy(block, callback, contentState);
     });
 
-    return List(decorations);
+    return decorations;
   }
 
   getComponentForKey(key: string): Function {
@@ -90,7 +86,7 @@ class CompositeDraftDecorator {
  * array.
  */
 function canOccupySlice(
-  decorations: Array<?string>,
+  decorations: $ReadOnlyArray<?string>,
   start: number,
   end: number,
 ): boolean {

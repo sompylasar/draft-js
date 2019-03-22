@@ -21,9 +21,6 @@ const ContentState = require('ContentState');
 const EditorState = require('EditorState');
 
 const getNextDelimiterBlockKey = require('getNextDelimiterBlockKey');
-const Immutable = require('immutable');
-
-const {List} = Immutable;
 
 const contentBlocks = [
   new ContentBlock({
@@ -49,7 +46,7 @@ const contentBlockNodes = [
   new ContentBlockNode({
     key: 'B',
     text: '',
-    children: List(['C']),
+    children: ['C'],
     nextSibling: 'D',
     prevSibling: 'A',
   }),
@@ -62,7 +59,7 @@ const contentBlockNodes = [
     key: 'D',
     text: '',
     prevSibling: 'B',
-    children: List(['E', 'F']),
+    children: ['E', 'F'],
   }),
   new ContentBlockNode({
     key: 'E',

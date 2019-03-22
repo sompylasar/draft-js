@@ -14,6 +14,7 @@
 import type {BlockNodeRecord} from 'BlockNodeRecord';
 
 const CharacterMetadata = require('CharacterMetadata');
+const inheritAndUpdate = require('inheritAndUpdate');
 
 function applyEntityToContentBlock(
   contentBlock: BlockNodeRecord,
@@ -21,15 +22,17 @@ function applyEntityToContentBlock(
   end: number,
   entityKey: ?string,
 ): BlockNodeRecord {
-  let characterList = contentBlock.getCharacterList();
+  let characterList = Array.from(contentBlock.getCharacterList());
   while (start < end) {
-    characterList = characterList.set(
-      start,
-      CharacterMetadata.applyEntity(characterList.get(start), entityKey),
+    characterList[start] = CharacterMetadata.applyEntity(
+      characterList[start],
+      entityKey,
     );
     start++;
   }
-  return contentBlock.set('characterList', characterList);
+  return inheritAndUpdate(contentBlock, {
+    characterList: characterList,
+  });
 }
 
 module.exports = applyEntityToContentBlock;

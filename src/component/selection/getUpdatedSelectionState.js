@@ -37,21 +37,22 @@ function getUpdatedSelectionState(
 
   const anchorPath = DraftOffsetKey.decode(anchorKey);
   const anchorBlockKey = anchorPath.blockKey;
-  const anchorLeaf = editorState
-    .getBlockTree(anchorBlockKey)
-    .getIn([anchorPath.decoratorKey, 'leaves', anchorPath.leafKey]);
+  const anchorBlockTree = nullthrows(editorState.getBlockTree(anchorBlockKey));
+  const anchorLeaf = nullthrows(anchorBlockTree[anchorPath.decoratorKey])
+    .leaves[anchorPath.leafKey];
 
   const focusPath = DraftOffsetKey.decode(focusKey);
   const focusBlockKey = focusPath.blockKey;
-  const focusLeaf = editorState
-    .getBlockTree(focusBlockKey)
-    .getIn([focusPath.decoratorKey, 'leaves', focusPath.leafKey]);
+  const focusBlockTree = nullthrows(editorState.getBlockTree(focusBlockKey));
+  const focusLeaf = nullthrows(focusBlockTree[focusPath.decoratorKey]).leaves[
+    focusPath.leafKey
+  ];
 
-  const anchorLeafStart: number = anchorLeaf.get('start');
-  const focusLeafStart: number = focusLeaf.get('start');
+  const anchorLeafStart: number = anchorLeaf.start;
+  const focusLeafStart: number = focusLeaf.start;
 
-  const anchorBlockOffset = anchorLeaf ? anchorLeafStart + anchorOffset : null;
-  const focusBlockOffset = focusLeaf ? focusLeafStart + focusOffset : null;
+  const anchorBlockOffset = anchorLeaf ? anchorLeafStart + anchorOffset : 0;
+  const focusBlockOffset = focusLeaf ? focusLeafStart + focusOffset : 0;
 
   const areEqual =
     selection.getAnchorKey() === anchorBlockKey &&
@@ -65,20 +66,20 @@ function getUpdatedSelectionState(
 
   let isBackward = false;
   if (anchorBlockKey === focusBlockKey) {
-    const anchorLeafEnd: number = anchorLeaf.get('end');
-    const focusLeafEnd: number = focusLeaf.get('end');
+    const anchorLeafEnd: number = anchorLeaf.end;
+    const focusLeafEnd: number = focusLeaf.end;
     if (focusLeafStart === anchorLeafStart && focusLeafEnd === anchorLeafEnd) {
       isBackward = focusOffset < anchorOffset;
     } else {
       isBackward = focusLeafStart < anchorLeafStart;
     }
   } else {
-    const startKey = editorState
-      .getCurrentContent()
-      .getBlockMap()
-      .keySeq()
-      .skipUntil(v => v === anchorBlockKey || v === focusBlockKey)
-      .first();
+    const startKey = Array.from(
+      editorState
+        .getCurrentContent()
+        .getBlockMap()
+        .keys(),
+    ).filter(v => !(v === anchorBlockKey || v === focusBlockKey))[0];
     isBackward = startKey === focusBlockKey;
   }
 

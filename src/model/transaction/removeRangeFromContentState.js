@@ -12,21 +12,20 @@
 'use strict';
 
 import type {BlockMap} from 'BlockMap';
+import type {BlockNodeRecord} from 'BlockNodeRecord';
 import type CharacterMetadata from 'CharacterMetadata';
-import type ContentState from 'ContentState';
-import type SelectionState from 'SelectionState';
 
 const ContentBlockNode = require('ContentBlockNode');
+const ContentState = require('ContentState');
+const SelectionState = require('SelectionState');
 
 const getNextDelimiterBlockKey = require('getNextDelimiterBlockKey');
-const Immutable = require('immutable');
-
-const {List, Map} = Immutable;
+const inheritAndUpdate = require('inheritAndUpdate');
 
 const transformBlock = (
   key: ?string,
-  blockMap: BlockMap,
-  func: (block: ContentBlockNode) => ContentBlockNode,
+  blockMap: Map<string, BlockNodeRecord>,
+  func: (block: BlockNodeRecord) => BlockNodeRecord,
 ): void => {
   if (!key) {
     return;
@@ -56,7 +55,11 @@ const getAncestorsKeys = (
   }
 
   let blockNode = blockMap.get(blockKey);
-  while (blockNode && blockNode.getParentKey()) {
+  while (
+    blockNode &&
+    blockNode instanceof ContentBlockNode &&
+    blockNode.getParentKey()
+  ) {
     const parentKey = blockNode.getParentKey();
     if (parentKey) {
       parents.push(parentKey);
@@ -72,7 +75,7 @@ const getAncestorsKeys = (
  * an array of key references
  */
 const getNextDelimitersBlockKeys = (
-  block: ContentBlockNode,
+  block: BlockNodeRecord,
   blockMap: BlockMap,
 ): Array<string> => {
   const nextDelimiters = [];
@@ -82,14 +85,19 @@ const getNextDelimitersBlockKeys = (
   }
 
   let nextDelimiter = getNextDelimiterBlockKey(block, blockMap);
-  while (nextDelimiter && blockMap.get(nextDelimiter)) {
+  while (nextDelimiter) {
     const block = blockMap.get(nextDelimiter);
+    if (!block) {
+      break;
+    }
+
     nextDelimiters.push(nextDelimiter);
 
     // we do not need to keep checking all root node siblings, just the first occurance
-    nextDelimiter = block.getParentKey()
-      ? getNextDelimiterBlockKey(block, blockMap)
-      : null;
+    nextDelimiter =
+      !(block instanceof ContentBlockNode) || block.getParentKey()
+        ? getNextDelimiterBlockKey(block, blockMap)
+        : null;
   }
 
   return nextDelimiters;
@@ -106,13 +114,19 @@ const getNextValidSibling = (
 
   // note that we need to make sure we refer to the original block since this
   // function is called within a withMutations
-  let nextValidSiblingKey = originalBlockMap
-    .get(block.getKey())
-    .getNextSiblingKey();
+  const originalBlock = originalBlockMap.get(block.getKey());
+  if (!originalBlock || !(originalBlock instanceof ContentBlockNode)) {
+    return null;
+  }
+
+  let nextValidSiblingKey = originalBlock.getNextSiblingKey();
 
   while (nextValidSiblingKey && !blockMap.get(nextValidSiblingKey)) {
-    nextValidSiblingKey =
-      originalBlockMap.get(nextValidSiblingKey).getNextSiblingKey() || null;
+    const nextBlock = originalBlockMap.get(nextValidSiblingKey);
+    if (!nextBlock || !(nextBlock instanceof ContentBlockNode)) {
+      break;
+    }
+    nextValidSiblingKey = nextBlock.getNextSiblingKey() || null;
   }
 
   return nextValidSiblingKey;
@@ -129,13 +143,18 @@ const getPrevValidSibling = (
 
   // note that we need to make sure we refer to the original block since this
   // function is called within a withMutations
-  let prevValidSiblingKey = originalBlockMap
-    .get(block.getKey())
-    .getPrevSiblingKey();
+  const originalBlock = originalBlockMap.get(block.getKey());
+  if (!originalBlock || !(originalBlock instanceof ContentBlockNode)) {
+    return null;
+  }
+  let prevValidSiblingKey = originalBlock.getPrevSiblingKey();
 
   while (prevValidSiblingKey && !blockMap.get(prevValidSiblingKey)) {
-    prevValidSiblingKey =
-      originalBlockMap.get(prevValidSiblingKey).getPrevSiblingKey() || null;
+    const prevBlock = originalBlockMap.get(prevValidSiblingKey);
+    if (!prevBlock || !(prevBlock instanceof ContentBlockNode)) {
+      break;
+    }
+    prevValidSiblingKey = prevBlock.getPrevSiblingKey() || null;
   }
 
   return prevValidSiblingKey;
@@ -147,139 +166,155 @@ const updateBlockMapLinks = (
   endBlock: ContentBlockNode,
   originalBlockMap: BlockMap,
 ): BlockMap => {
-  return blockMap.withMutations(blocks => {
-    // update start block if its retained
-    transformBlock(startBlock.getKey(), blocks, block =>
-      block.merge({
-        nextSibling: getNextValidSibling(block, blocks, originalBlockMap),
-        prevSibling: getPrevValidSibling(block, blocks, originalBlockMap),
-      }),
-    );
+  const newBlockMap = new Map(blockMap);
 
-    // update endblock if its retained
-    transformBlock(endBlock.getKey(), blocks, block =>
-      block.merge({
-        nextSibling: getNextValidSibling(block, blocks, originalBlockMap),
-        prevSibling: getPrevValidSibling(block, blocks, originalBlockMap),
-      }),
-    );
-
-    // update start block parent ancestors
-    getAncestorsKeys(startBlock.getKey(), originalBlockMap).forEach(parentKey =>
-      transformBlock(parentKey, blocks, block =>
-        block.merge({
-          children: block.getChildKeys().filter(key => blocks.get(key)),
-          nextSibling: getNextValidSibling(block, blocks, originalBlockMap),
-          prevSibling: getPrevValidSibling(block, blocks, originalBlockMap),
-        }),
+  // update start block if its retained
+  transformBlock(startBlock.getKey(), newBlockMap, block => {
+    return inheritAndUpdate(block, {
+      nextSibling: getNextValidSibling(
+        block,
+        ((newBlockMap: any): BlockMap),
+        originalBlockMap,
       ),
-    );
+      prevSibling: getPrevValidSibling(block, newBlockMap, originalBlockMap),
+    });
+  });
 
-    // update start block next - can only happen if startBlock == endBlock
-    transformBlock(startBlock.getNextSiblingKey(), blocks, block =>
-      block.merge({
-        prevSibling: startBlock.getPrevSiblingKey(),
+  // update endblock if its retained
+  transformBlock(endBlock.getKey(), newBlockMap, block => {
+    return inheritAndUpdate(block, {
+      nextSibling: getNextValidSibling(block, newBlockMap, originalBlockMap),
+      prevSibling: getPrevValidSibling(block, newBlockMap, originalBlockMap),
+    });
+  });
+
+  // update start block parent ancestors
+  getAncestorsKeys(startBlock.getKey(), originalBlockMap).forEach(parentKey => {
+    transformBlock(parentKey, newBlockMap, block => {
+      return inheritAndUpdate(block, {
+        children: block.getChildKeys().filter(key => newBlockMap.get(key)),
+        nextSibling: getNextValidSibling(block, newBlockMap, originalBlockMap),
+        prevSibling: getPrevValidSibling(block, newBlockMap, originalBlockMap),
+      });
+    });
+  });
+
+  // update start block next - can only happen if startBlock == endBlock
+  transformBlock(startBlock.getNextSiblingKey(), newBlockMap, block => {
+    return inheritAndUpdate(block, {
+      prevSibling: startBlock.getPrevSiblingKey(),
+    });
+  });
+
+  // update start block prev
+  transformBlock(startBlock.getPrevSiblingKey(), newBlockMap, block => {
+    return inheritAndUpdate(block, {
+      nextSibling: getNextValidSibling(block, newBlockMap, originalBlockMap),
+    });
+  });
+
+  // update end block next
+  transformBlock(endBlock.getNextSiblingKey(), newBlockMap, block => {
+    return inheritAndUpdate(block, {
+      prevSibling: getPrevValidSibling(block, newBlockMap, originalBlockMap),
+    });
+  });
+
+  // update end block prev
+  transformBlock(endBlock.getPrevSiblingKey(), newBlockMap, block => {
+    return inheritAndUpdate(block, {
+      nextSibling: endBlock.getNextSiblingKey(),
+    });
+  });
+
+  // update end block parent ancestors
+  getAncestorsKeys(endBlock.getKey(), originalBlockMap).forEach(parentKey => {
+    transformBlock(parentKey, newBlockMap, block =>
+      inheritAndUpdate(block, {
+        children: block.getChildKeys().filter(key => newBlockMap.get(key)),
+        nextSibling: getNextValidSibling(block, newBlockMap, originalBlockMap),
+        prevSibling: getPrevValidSibling(block, newBlockMap, originalBlockMap),
       }),
     );
+  });
 
-    // update start block prev
-    transformBlock(startBlock.getPrevSiblingKey(), blocks, block =>
-      block.merge({
-        nextSibling: getNextValidSibling(block, blocks, originalBlockMap),
-      }),
-    );
+  // update next delimiters all the way to a root delimiter
+  getNextDelimitersBlockKeys(endBlock, originalBlockMap).forEach(
+    delimiterKey => {
+      transformBlock(delimiterKey, newBlockMap, block => {
+        return inheritAndUpdate(block, {
+          nextSibling: getNextValidSibling(
+            block,
+            newBlockMap,
+            originalBlockMap,
+          ),
+          prevSibling: getPrevValidSibling(
+            block,
+            newBlockMap,
+            originalBlockMap,
+          ),
+        });
+      });
+    },
+  );
 
-    // update end block next
-    transformBlock(endBlock.getNextSiblingKey(), blocks, block =>
-      block.merge({
-        prevSibling: getPrevValidSibling(block, blocks, originalBlockMap),
-      }),
-    );
-
-    // update end block prev
-    transformBlock(endBlock.getPrevSiblingKey(), blocks, block =>
-      block.merge({
-        nextSibling: endBlock.getNextSiblingKey(),
-      }),
-    );
-
-    // update end block parent ancestors
-    getAncestorsKeys(endBlock.getKey(), originalBlockMap).forEach(parentKey => {
-      transformBlock(parentKey, blocks, block =>
-        block.merge({
-          children: block.getChildKeys().filter(key => blocks.get(key)),
-          nextSibling: getNextValidSibling(block, blocks, originalBlockMap),
-          prevSibling: getPrevValidSibling(block, blocks, originalBlockMap),
-        }),
-      );
+  // if parent (startBlock) was deleted
+  if (
+    blockMap.get(startBlock.getKey()) == null &&
+    blockMap.get(endBlock.getKey()) != null &&
+    endBlock.getParentKey() === startBlock.getKey() &&
+    endBlock.getPrevSiblingKey() == null
+  ) {
+    const prevSiblingKey = startBlock.getPrevSiblingKey();
+    // endBlock becomes next sibling of parent's prevSibling
+    transformBlock(endBlock.getKey(), newBlockMap, block => {
+      return inheritAndUpdate(block, {
+        prevSibling: prevSiblingKey,
+      });
+    });
+    transformBlock(prevSiblingKey, newBlockMap, block => {
+      return inheritAndUpdate(block, {
+        nextSibling: endBlock.getKey(),
+      });
     });
 
-    // update next delimiters all the way to a root delimiter
-    getNextDelimitersBlockKeys(endBlock, originalBlockMap).forEach(
-      delimiterKey =>
-        transformBlock(delimiterKey, blocks, block =>
-          block.merge({
-            nextSibling: getNextValidSibling(block, blocks, originalBlockMap),
-            prevSibling: getPrevValidSibling(block, blocks, originalBlockMap),
-          }),
-        ),
-    );
-
-    // if parent (startBlock) was deleted
-    if (
-      blockMap.get(startBlock.getKey()) == null &&
-      blockMap.get(endBlock.getKey()) != null &&
-      endBlock.getParentKey() === startBlock.getKey() &&
-      endBlock.getPrevSiblingKey() == null
-    ) {
-      const prevSiblingKey = startBlock.getPrevSiblingKey();
-      // endBlock becomes next sibling of parent's prevSibling
-      transformBlock(endBlock.getKey(), blocks, block =>
-        block.merge({
-          prevSibling: prevSiblingKey,
-        }),
-      );
-      transformBlock(prevSiblingKey, blocks, block =>
-        block.merge({
-          nextSibling: endBlock.getKey(),
-        }),
-      );
-
-      // Update parent for previous parent's children, and children for that parent
-      const prevSibling = prevSiblingKey ? blockMap.get(prevSiblingKey) : null;
-      const newParentKey = prevSibling ? prevSibling.getParentKey() : null;
-      startBlock.getChildKeys().forEach(childKey => {
-        transformBlock(childKey, blocks, block =>
-          block.merge({
-            parent: newParentKey, // set to null if there is no parent
-          }),
-        );
+    // Update parent for previous parent's children, and children for that parent
+    const prevSibling = prevSiblingKey ? blockMap.get(prevSiblingKey) : null;
+    const newParentKey = prevSibling ? prevSibling.getParentKey() : null;
+    startBlock.getChildKeys().forEach(childKey => {
+      transformBlock(childKey, newBlockMap, block => {
+        return inheritAndUpdate(block, {
+          parent: newParentKey, // set to null if there is no parent
+        });
       });
-      if (newParentKey != null) {
-        const newParent = blockMap.get(newParentKey);
-        transformBlock(newParentKey, blocks, block =>
-          block.merge({
-            children: newParent
-              .getChildKeys()
-              .concat(startBlock.getChildKeys()),
-          }),
-        );
-      }
-
-      // last child of deleted parent should point to next sibling
-      transformBlock(
-        startBlock.getChildKeys().find(key => {
-          const block = (blockMap.get(key): ContentBlockNode);
-          return block.getNextSiblingKey() === null;
-        }),
-        blocks,
-        block =>
-          block.merge({
-            nextSibling: startBlock.getNextSiblingKey(),
-          }),
-      );
+    });
+    if (newParentKey != null) {
+      const newParent = blockMap.get(newParentKey);
+      transformBlock(newParentKey, newBlockMap, block => {
+        return inheritAndUpdate(block, {
+          children: newParent.getChildKeys().concat(startBlock.getChildKeys()),
+        });
+      });
     }
-  });
+
+    // last child of deleted parent should point to next sibling
+    transformBlock(
+      startBlock.getChildKeys().find(key => {
+        const block = blockMap.get(key);
+        return block
+          ? ((block: any): ContentBlockNode).getNextSiblingKey() === null
+          : false;
+      }),
+      newBlockMap,
+      block => {
+        return inheritAndUpdate(block, {
+          nextSibling: startBlock.getNextSiblingKey(),
+        });
+      },
+    );
+  }
+
+  return newBlockMap;
 };
 
 const removeRangeFromContentState = (
@@ -342,7 +377,7 @@ const removeRangeFromContentState = (
       .concat(endBlock.getCharacterList().slice(endOffset));
   }
 
-  const modifiedStart = startBlock.merge({
+  const modifiedStart = inheritAndUpdate(startBlock, {
     text:
       startBlock.getText().slice(0, startOffset) +
       endBlock.getText().slice(endOffset),
@@ -357,18 +392,38 @@ const removeRangeFromContentState = (
     endOffset === 0 &&
     endBlock.getParentKey() === startKey &&
     endBlock.getPrevSiblingKey() == null;
-  const newBlocks = shouldDeleteParent
-    ? Map([[startKey, null]])
-    : blockMap
-        .toSeq()
-        .skipUntil((_, k) => k === startKey)
-        .takeUntil((_, k) => k === endKey)
-        .filter((_, k) => parentAncestors.indexOf(k) === -1)
-        .concat(Map([[endKey, null]]))
-        .map((_, k) => {
-          return k === startKey ? modifiedStart : null;
-        });
-  let updatedBlockMap = blockMap.merge(newBlocks).filter(block => !!block);
+
+  let blockMapUpdatedEntries;
+  if (shouldDeleteParent) {
+    blockMapUpdatedEntries = [[startKey, null]];
+  } else {
+    blockMapUpdatedEntries = [];
+    let loopState = 0;
+    for (const blockMapEntry of blockMap) {
+      if (loopState === 0 && blockMapEntry[0] === startKey) {
+        // skipUntil done
+        ++loopState;
+      } else if (loopState === 1 && blockMapEntry[0] === endKey) {
+        // takeUntil done
+        ++loopState;
+        // concat the endKey block
+        blockMapUpdatedEntries.push([blockMapEntry[0], null]);
+      } else if (loopState === 1) {
+        // takeUntil after skipUntil, filter
+        if (parentAncestors.indexOf(blockMapEntry[0]) === -1) {
+          blockMapUpdatedEntries.push(blockMapEntry);
+        }
+      }
+    }
+    blockMapUpdatedEntries = blockMapUpdatedEntries.map(
+      ([k, _]) => (k === startKey ? modifiedStart : null),
+    );
+  }
+  let updatedBlockMap = new Map(
+    [...blockMap.entries(), ...blockMapUpdatedEntries].filter(
+      ([_, block]) => !!block,
+    ),
+  );
 
   // Only update tree block pointers if the range is across blocks
   if (isExperimentalTreeBlock && startBlock !== endBlock) {
@@ -380,10 +435,10 @@ const removeRangeFromContentState = (
     );
   }
 
-  return contentState.merge({
+  return ContentState.set(contentState, {
     blockMap: updatedBlockMap,
     selectionBefore: selectionState,
-    selectionAfter: selectionState.merge({
+    selectionAfter: SelectionState.set(selectionState, {
       anchorKey: startKey,
       anchorOffset: startOffset,
       focusKey: startKey,

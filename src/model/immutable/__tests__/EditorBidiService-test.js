@@ -17,10 +17,6 @@ const ContentBlock = require('ContentBlock');
 const ContentState = require('ContentState');
 const EditorBidiService = require('EditorBidiService');
 
-const Immutable = require('immutable');
-
-const {OrderedMap, Seq} = Immutable;
-
 const ltr = new ContentBlock({
   key: 'a',
   text: 'hello',
@@ -35,16 +31,15 @@ const empty = new ContentBlock({
 });
 
 const getContentState = blocks => {
-  const keys = Seq(blocks.map(b => b.getKey()));
-  const values = Seq(blocks);
-  const blockMap = OrderedMap(keys.zip(values));
-  return new ContentState({blockMap});
+  return new ContentState({
+    blockMap: new Map(blocks.map(block => [block.getKey(), block])),
+  });
 };
 
 test('must create a new map', () => {
   const state = getContentState([ltr]);
   const directions = EditorBidiService.getDirectionMap(state);
-  expect(directions.toJS()).toMatchSnapshot();
+  expect(directions).toMatchSnapshot();
 });
 
 test('must return the same map if no changes', () => {
@@ -60,8 +55,8 @@ test('must return the same map if no changes', () => {
   expect(state !== nextState).toMatchSnapshot();
   expect(directions === nextDirections.toJS()).toMatchSnapshot();
 
-  expect(directions.toJS()).toMatchSnapshot();
-  expect(nextDirections.toJS()).toMatchSnapshot();
+  expect(directions).toMatchSnapshot();
+  expect(nextDirections).toMatchSnapshot();
 });
 
 test('must return the same map if no text changes', () => {
@@ -83,8 +78,8 @@ test('must return the same map if no text changes', () => {
   expect(state !== nextState).toMatchSnapshot();
   expect(directions === nextDirections.toJS()).toMatchSnapshot();
 
-  expect(directions.toJS()).toMatchSnapshot();
-  expect(nextDirections.toJS()).toMatchSnapshot();
+  expect(directions).toMatchSnapshot();
+  expect(nextDirections).toMatchSnapshot();
 });
 
 test('must return the same map if no directions change', () => {
@@ -106,8 +101,8 @@ test('must return the same map if no directions change', () => {
   expect(state !== nextState).toMatchSnapshot();
   expect(directions === nextDirections.toJS()).toMatchSnapshot();
 
-  expect(directions.toJS()).toMatchSnapshot();
-  expect(nextDirections.toJS()).toMatchSnapshot();
+  expect(directions).toMatchSnapshot();
+  expect(nextDirections).toMatchSnapshot();
 });
 
 test('must return a new map if block keys change', () => {
@@ -128,8 +123,8 @@ test('must return a new map if block keys change', () => {
   expect(state !== nextState).toMatchSnapshot();
   expect(directions !== nextDirections.toJS()).toMatchSnapshot();
 
-  expect(directions.toJS()).toMatchSnapshot();
-  expect(nextDirections.toJS()).toMatchSnapshot();
+  expect(directions).toMatchSnapshot();
+  expect(nextDirections).toMatchSnapshot();
 });
 
 test('must return a new map if direction changes', () => {
@@ -144,6 +139,6 @@ test('must return a new map if direction changes', () => {
   expect(state !== nextState).toMatchSnapshot();
   expect(directions !== nextDirections.toJS()).toMatchSnapshot();
 
-  expect(directions.toJS()).toMatchSnapshot();
-  expect(nextDirections.toJS()).toMatchSnapshot();
+  expect(directions).toMatchSnapshot();
+  expect(nextDirections).toMatchSnapshot();
 });

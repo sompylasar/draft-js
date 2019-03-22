@@ -27,7 +27,6 @@ const cx = require('cx');
 const generateRandomKey = require('generateRandomKey');
 const getSafeBodyFromHTML = require('getSafeBodyFromHTML');
 const gkx = require('gkx');
-const {List, Map, OrderedSet} = require('immutable');
 
 const experimentalTreeDataSupport = gkx('draft_tree_data_support');
 
@@ -57,63 +56,68 @@ const knownListItemDepthClasses = {
   [cx('public/DraftStyleDefault/depth4')]: 4,
 };
 
-const HTMLTagToInlineStyleMap: Map<string, string> = Map({
-  b: 'BOLD',
-  code: 'CODE',
-  del: 'STRIKETHROUGH',
-  em: 'ITALIC',
-  i: 'ITALIC',
-  s: 'STRIKETHROUGH',
-  strike: 'STRIKETHROUGH',
-  strong: 'BOLD',
-  u: 'UNDERLINE',
-  mark: 'HIGHLIGHT',
-});
+const HTMLTagToInlineStyleMap = (new Map([
+  ['b', 'BOLD'],
+  ['code', 'CODE'],
+  ['del', 'STRIKETHROUGH'],
+  ['em', 'ITALIC'],
+  ['i', 'ITALIC'],
+  ['s', 'STRIKETHROUGH'],
+  ['strike', 'STRIKETHROUGH'],
+  ['strong', 'BOLD'],
+  ['u', 'UNDERLINE'],
+  ['mark', 'HIGHLIGHT'],
+]): $ReadOnlyMap<string, string>);
 
-type BlockTypeMap = Map<string, string | Array<string>>;
+type BlockTypeMap = $ReadOnlyMap<string, string | $ReadOnlyArray<string>>;
 
 /**
  * Build a mapping from HTML tags to draftjs block types
  * out of a BlockRenderMap.
  *
  * The BlockTypeMap for the default BlockRenderMap looks like this:
- *   Map({
- *     h1: 'header-one',
- *     h2: 'header-two',
- *     h3: 'header-three',
- *     h4: 'header-four',
- *     h5: 'header-five',
- *     h6: 'header-six',
- *     blockquote: 'blockquote',
- *     figure: 'atomic',
- *     pre: ['code-block'],
- *     div: 'unstyled',
- *     p: 'unstyled',
- *     li: ['ordered-list-item', 'unordered-list-item'],
- *   })
+ *   Map([
+ *     ['h1', 'header-one'],
+ *     ['h2', 'header-two'],
+ *     ['h3', 'header-three'],
+ *     ['h4', 'header-four'],
+ *     ['h5', 'header-five'],
+ *     ['h6', 'header-six'],
+ *     ['blockquote', 'blockquote'],
+ *     ['figure', 'atomic'],
+ *     ['pre', ['code-block']],
+ *     ['div', 'unstyled'],
+ *     ['p', 'unstyled'],
+ *     ['li', ['ordered-list-item', 'unordered-list-item']],
+ *   ])
  */
 const buildBlockTypeMap = (
   blockRenderMap: DraftBlockRenderMap,
 ): BlockTypeMap => {
-  const blockTypeMap = {};
+  const blockTypeMap = new Map();
 
-  blockRenderMap.mapKeys((blockType, desc) => {
+  for (const [blockType, desc] of blockRenderMap) {
     const elements = [desc.element];
     if (desc.aliasedElements !== undefined) {
       elements.push(...desc.aliasedElements);
     }
-    elements.forEach(element => {
-      if (blockTypeMap[element] === undefined) {
-        blockTypeMap[element] = blockType;
-      } else if (typeof blockTypeMap[element] === 'string') {
-        blockTypeMap[element] = [blockTypeMap[element], blockType];
+    for (const element of elements) {
+      const blockTypeFromMap = blockTypeMap.get(element);
+      if (blockTypeFromMap === undefined) {
+        blockTypeMap.set(element, blockType);
+      } else if (typeof blockTypeFromMap === 'string') {
+        blockTypeMap.set(element, [blockTypeFromMap, blockType]);
       } else {
-        blockTypeMap[element].push(blockType);
+        // More optimal here would be to push to the existing array `blockTypeFromMap`,
+        // but this would require mutable `Array` type for the map elements instead of immutable `$ReadOnlyArray`.
+        // `$ReadOnlyArray` is meant to restrict mutations where `BlockTypeMap` is used, not where it's created.
+        // Less optimal here is feasible because building the map is a rare operation.
+        blockTypeMap.set(element, [...blockTypeFromMap, blockType]);
       }
-    });
-  });
+    }
+  }
 
-  return Map(blockTypeMap);
+  return blockTypeMap;
 };
 
 /**
@@ -169,13 +173,13 @@ const isListNode = (nodeName: ?string): boolean =>
  *  ContentBlocksBuilder class.
  */
 type ContentBlockConfig = {
-  characterList: List<CharacterMetadata>,
+  characterList: Array<CharacterMetadata>,
   data?: Map<any, any>,
   depth?: number,
   key: string,
   text: string,
   type: string,
-  children: List<string>,
+  children: Array<string>,
   parent: ?string,
   prevSibling: ?string,
   nextSibling: ?string,
@@ -206,11 +210,11 @@ class ContentBlocksBuilder {
 
   // The following attributes are used to accumulate text and styles
   // as we are walking the HTML node tree.
-  characterList: List<CharacterMetadata> = List();
+  characterList: Array<CharacterMetadata> = [];
   currentBlockType: string = 'unstyled';
   currentDepth: number = -1;
   currentEntity: ?string = null;
-  currentStyle: DraftInlineStyle = OrderedSet();
+  currentStyle: DraftInlineStyle = new Set();
   currentText: string = '';
   wrapper: ?string = null;
 
@@ -240,12 +244,12 @@ class ContentBlocksBuilder {
    * Clear the internal state of the ContentBlocksBuilder
    */
   clear(): void {
-    this.characterList = List();
+    this.characterList = [];
     this.blockConfigs = [];
     this.currentBlockType = 'unstyled';
     this.currentDepth = -1;
     this.currentEntity = null;
-    this.currentStyle = OrderedSet();
+    this.currentStyle = new Set();
     this.currentText = '';
     this.entityMap = DraftEntity;
     this.wrapper = null;
@@ -303,7 +307,8 @@ class ContentBlocksBuilder {
    * Remove a currently applied inline style.
    */
   removeStyle(inlineStyle: string): void {
-    this.currentStyle = this.currentStyle.remove(inlineStyle);
+    this.currentStyle = new Set(this.currentStyle);
+    this.currentStyle.delete(inlineStyle);
   }
 
   // ***********************************WARNING******************************
@@ -322,13 +327,13 @@ class ContentBlocksBuilder {
       characterList: this.characterList,
       depth: Math.max(0, this.currentDepth),
       parent: null,
-      children: List(),
+      children: [],
       prevSibling: null,
       nextSibling: null,
       childConfigs: [],
       ...config,
     };
-    this.characterList = List();
+    this.characterList = [];
     this.currentBlockType = 'unstyled';
     this.currentDepth = -1;
     this.currentText = '';
@@ -461,8 +466,8 @@ class ContentBlocksBuilder {
       style: this.currentStyle,
       entity: this.currentEntity,
     });
-    this.characterList = this.characterList.push(
-      ...Array(text.length).fill(characterMetadata),
+    this.characterList = this.characterList.concat(
+      Array(text.length).fill(characterMetadata),
     );
   }
 
@@ -475,19 +480,19 @@ class ContentBlocksBuilder {
     let end = this.currentText.trimRight().length;
 
     // We should not trim whitespaces for which an entity is defined.
-    let entity = this.characterList.findEntry(
+    let entityIndex = this.characterList.findIndex(
       characterMetadata => characterMetadata.getEntity() !== null,
     );
-    begin = entity !== undefined ? Math.min(begin, entity[0]) : begin;
+    begin = entityIndex >= 0 ? Math.min(begin, entityIndex) : begin;
 
-    entity = this.characterList
+    entityIndex = Array.from(this.characterList)
       .reverse()
-      .findEntry(characterMetadata => characterMetadata.getEntity() !== null);
-    end = entity !== undefined ? Math.max(end, l - entity[0]) : end;
+      .findIndex(characterMetadata => characterMetadata.getEntity() !== null);
+    end = entityIndex >= 0 ? Math.max(end, l - entityIndex) : end;
 
     if (begin > end) {
       this.currentText = '';
-      this.characterList = List();
+      this.characterList = [];
     } else {
       this.currentText = this.currentText.slice(begin, end);
       this.characterList = this.characterList.slice(begin, end);
@@ -648,7 +653,7 @@ class ContentBlocksBuilder {
       config.parent = parent;
       config.prevSibling = i > 0 ? blockConfigs[i - 1].key : null;
       config.nextSibling = i < l ? blockConfigs[i + 1].key : null;
-      config.children = List(config.childConfigs.map(child => child.key));
+      config.children = config.childConfigs.map(child => child.key);
       this.contentBlocks.push(new ContentBlockNode({...config}));
       this._toContentBlocks(config.childConfigs, config.key);
     }
@@ -687,11 +692,11 @@ class ContentBlocksBuilder {
     blockConfigs: Array<ContentBlockConfig>,
   ): {
     text: string,
-    characterList: List<CharacterMetadata>,
+    characterList: Array<CharacterMetadata>,
   } {
     const l = blockConfigs.length - 1;
     let text = '';
-    let characterList = List();
+    let characterList = [];
     for (let i = 0; i <= l; i++) {
       const config = blockConfigs[i];
       text += config.text;
@@ -701,7 +706,7 @@ class ContentBlocksBuilder {
        * comment and run Flow. */
       if (text !== '' && config.blockType !== 'unstyled') {
         text += '\n';
-        characterList = characterList.push(characterList.last());
+        characterList.push(characterList[characterList.length - 1]);
       }
       const children = this._extractTextFromBlockConfigs(config.childConfigs);
       text += children.text;

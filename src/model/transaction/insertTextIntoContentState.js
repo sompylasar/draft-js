@@ -11,12 +11,9 @@
 
 'use strict';
 
-const Immutable = require('immutable');
-
 const insertIntoList = require('insertIntoList');
+const inheritAndUpdate = require('inheritAndUpdate');
 const invariant = require('invariant');
-
-const {Repeat} = Immutable;
 
 import type CharacterMetadata from 'CharacterMetadata';
 import type ContentState from 'ContentState';
@@ -44,23 +41,26 @@ function insertTextIntoContentState(
   const block = blockMap.get(key);
   const blockText = block.getText();
 
-  const newBlock = block.merge({
+  const newBlock = inheritAndUpdate(block, {
     text:
       blockText.slice(0, offset) +
       text +
       blockText.slice(offset, block.getLength()),
     characterList: insertIntoList(
       block.getCharacterList(),
-      Repeat(characterMetadata, len).toList(),
+      Array(len).fill(characterMetadata),
       offset,
     ),
   });
 
   const newOffset = offset + len;
 
-  return contentState.merge({
-    blockMap: blockMap.set(key, newBlock),
-    selectionAfter: selectionState.merge({
+  const newBlockMap = new Map(blockMap);
+  newBlockMap.set(key, newBlock);
+
+  return ContentState.set(contentState, {
+    blockMap: newBlockMap,
+    selectionAfter: SelectionState.set(selectionState, {
       anchorOffset: newOffset,
       focusOffset: newOffset,
     }),

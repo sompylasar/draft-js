@@ -15,27 +15,17 @@ import type {BlockNode, BlockNodeConfig, BlockNodeKey} from 'BlockNode';
 import type {DraftBlockType} from 'DraftBlockType';
 import type {DraftInlineStyle} from 'DraftInlineStyle';
 
+const {EMPTY_STYLE} = require('DraftInlineStyle');
 const CharacterMetadata = require('CharacterMetadata');
-const Immutable = require('immutable');
 
 const findRangesImmutable = require('findRangesImmutable');
+const inheritAndUpdate = require('inheritAndUpdate');
 
-const {List, Map, OrderedSet, Record, Repeat} = Immutable;
+type ContentBlockConfig = BlockNodeConfig;
 
-const EMPTY_SET = OrderedSet();
-
-const defaultRecord: BlockNodeConfig = {
-  key: '',
-  type: 'unstyled',
-  text: '',
-  characterList: List(),
-  depth: 0,
-  data: Map(),
-};
-
-const ContentBlockRecord = (Record(defaultRecord): any);
-
-const decorateCharacterList = (config: BlockNodeConfig): BlockNodeConfig => {
+const decorateCharacterList = (
+  config?: ContentBlockConfig,
+): ?ContentBlockConfig => {
   if (!config) {
     return config;
   }
@@ -43,31 +33,41 @@ const decorateCharacterList = (config: BlockNodeConfig): BlockNodeConfig => {
   const {characterList, text} = config;
 
   if (text && !characterList) {
-    config.characterList = List(Repeat(CharacterMetadata.EMPTY, text.length));
+    return {
+      ...config,
+      characterList: Array(text.length).fill(CharacterMetadata.EMPTY),
+    };
   }
 
   return config;
 };
 
-class ContentBlock extends ContentBlockRecord implements BlockNode {
-  constructor(config: BlockNodeConfig) {
-    super(decorateCharacterList(config));
+class ContentBlock implements BlockNode {
+  characterList: $ReadOnlyArray<CharacterMetadata> = [];
+  data: $ReadOnlyMap<any, any> = new Map();
+  depth: number = 0;
+  key: BlockNodeKey = '';
+  text: string = '';
+  type: DraftBlockType = 'unstyled';
+
+  constructor(config?: ContentBlockConfig) {
+    Object.assign(this, decorateCharacterList(config));
   }
 
   getKey(): BlockNodeKey {
-    return this.get('key');
+    return this.key;
   }
 
   getType(): DraftBlockType {
-    return this.get('type');
+    return this.type;
   }
 
   getText(): string {
-    return this.get('text');
+    return this.text;
   }
 
-  getCharacterList(): List<CharacterMetadata> {
-    return this.get('characterList');
+  getCharacterList(): $ReadOnlyArray<CharacterMetadata> {
+    return this.characterList;
   }
 
   getLength(): number {
@@ -75,20 +75,20 @@ class ContentBlock extends ContentBlockRecord implements BlockNode {
   }
 
   getDepth(): number {
-    return this.get('depth');
+    return this.depth;
   }
 
-  getData(): Map<any, any> {
-    return this.get('data');
+  getData(): $ReadOnlyMap<any, any> {
+    return this.data;
   }
 
   getInlineStyleAt(offset: number): DraftInlineStyle {
-    const character = this.getCharacterList().get(offset);
-    return character ? character.getStyle() : EMPTY_SET;
+    const character = this.getCharacterList()[offset];
+    return character ? character.getStyle() : EMPTY_STYLE;
   }
 
   getEntityAt(offset: number): ?string {
-    const character = this.getCharacterList().get(offset);
+    const character = this.getCharacterList()[offset];
     return character ? character.getEntity() : null;
   }
 
@@ -120,6 +120,10 @@ class ContentBlock extends ContentBlockRecord implements BlockNode {
       filterFn,
       callback,
     );
+  }
+
+  static set(block: ContentBlock, put: ContentBlockConfig): ContentBlock {
+    return inheritAndUpdate(block, put);
   }
 }
 

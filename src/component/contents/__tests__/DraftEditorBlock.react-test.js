@@ -22,13 +22,13 @@ const CharacterMetadata = require('CharacterMetadata');
 const ContentBlock = require('ContentBlock');
 const ContentState = require('ContentState');
 const DraftEditorBlock = require('DraftEditorBlock.react');
-const Immutable = require('immutable');
 const React = require('React');
 const ReactDOM = require('ReactDOM');
 const SampleDraftInlineStyle = require('SampleDraftInlineStyle');
 const SelectionState = require('SelectionState');
 const Style = require('Style');
 const UnicodeBidiDirection = require('UnicodeBidiDirection');
+const inheritAndUpdate = require('inheritAndUpdate');
 
 const getElementPosition = require('getElementPosition');
 const getScrollPosition = require('getScrollPosition');
@@ -82,12 +82,16 @@ const returnEmptyString = () => {
   return '';
 };
 
+const repeat = (value, length) => {
+  return Array(length).fill(value);
+};
+
 const getHelloBlock = () => {
   return new ContentBlock({
     key: 'a',
     type: 'unstyled',
     text: 'hello',
-    characterList: Immutable.List(Immutable.Repeat(CharacterMetadata.EMPTY, 5)),
+    characterList: repeat(CharacterMetadata.EMPTY, 5),
   });
 };
 
@@ -117,9 +121,7 @@ const getProps = (block, decorator) => {
 
 const arePropsEqual = (renderedChild, leafPropSet) => {
   Object.keys(leafPropSet).forEach(key => {
-    expect(
-      Immutable.is(leafPropSet[key], renderedChild.props[key]),
-    ).toMatchSnapshot();
+    expect(leafPropSet[key]).toEqual(renderedChild.props[key]);
   });
 };
 
@@ -164,7 +166,9 @@ test('must render multiple leaf nodes', () => {
     .map(c => CharacterMetadata.applyStyle(c, 'BOLD'))
     .concat(characters.slice(boldLength));
 
-  helloBlock = helloBlock.set('characterList', characters.toList());
+  helloBlock = inheritAndUpdate(helloBlock, {
+    characterList: characters,
+  });
 
   const props = getProps(helloBlock);
   const block = ReactTestRenderer.create(<DraftEditorBlock {...props} />);
@@ -199,7 +203,9 @@ test('must allow update when `block` has changed', () => {
 
   expect(mockLeafRender.mock.calls.length).toMatchSnapshot();
 
-  const updatedHelloBlock = helloBlock.set('text', 'hxllo');
+  const updatedHelloBlock = inheritAndUpdate(helloBlock, {
+    text: 'hxllo',
+  });
   const nextProps = getProps(updatedHelloBlock);
 
   expect(updatedHelloBlock !== helloBlock).toMatchSnapshot();
@@ -219,9 +225,7 @@ test('must allow update when `tree` has changed', () => {
 
   expect(mockLeafRender.mock.calls.length).toMatchSnapshot();
 
-  mockGetDecorations.mockReturnValue(
-    Immutable.List.of('x', 'x', null, null, null),
-  );
+  mockGetDecorations.mockReturnValue(['x', 'x', null, null, null]);
   const decorator = new Decorator();
 
   const newTree = BlockTree.generate(
@@ -319,9 +323,7 @@ test('must reject update if selection is not on an edge', () => {
 test('must split apart two decorated and undecorated', () => {
   const helloBlock = getHelloBlock();
 
-  mockGetDecorations.mockReturnValue(
-    Immutable.List.of('x', 'x', null, null, null),
-  );
+  mockGetDecorations.mockReturnValue(['x', 'x', null, null, null]);
   const decorator = new Decorator();
   const props = getProps(helloBlock, decorator);
 
@@ -349,9 +351,7 @@ test('must split apart two decorated and undecorated', () => {
 test('must split apart two decorators', () => {
   const helloBlock = getHelloBlock();
 
-  mockGetDecorations.mockReturnValue(
-    Immutable.List.of('x', 'x', 'y', 'y', 'y'),
-  );
+  mockGetDecorations.mockReturnValue(['x', 'x', 'y', 'y', 'y']);
 
   const decorator = new Decorator();
   const props = getProps(helloBlock, decorator);
@@ -387,7 +387,9 @@ test('must split apart styled spans', () => {
     })
     .concat(characters.slice(2));
 
-  helloBlock = helloBlock.set('characterList', Immutable.List(newChars));
+  helloBlock = inheritAndUpdate(helloBlock, {
+    characterList: newChars,
+  });
   const props = getProps(helloBlock);
 
   const container = document.createElement('div');
@@ -412,16 +414,16 @@ test('must split apart styled spans', () => {
 test('must split styled spans apart within decorator', () => {
   let helloBlock = getHelloBlock();
   const characters = helloBlock.getCharacterList();
-  const newChars = Immutable.List([
-    CharacterMetadata.applyStyle(characters.get(0), 'BOLD'),
-    CharacterMetadata.applyStyle(characters.get(1), 'ITALIC'),
-  ]).concat(characters.slice(2));
+  const newChars = [
+    CharacterMetadata.applyStyle(characters[0], 'BOLD'),
+    CharacterMetadata.applyStyle(characters[1], 'ITALIC'),
+  ].concat(characters.slice(2));
 
-  helloBlock = helloBlock.set('characterList', Immutable.List(newChars));
+  helloBlock = inheritAndUpdate(helloBlock, {
+    characterList: newChars,
+  });
 
-  mockGetDecorations.mockReturnValue(
-    Immutable.List.of('x', 'x', null, null, null),
-  );
+  mockGetDecorations.mockReturnValue(['x', 'x', null, null, null]);
   const decorator = new Decorator();
   const props = getProps(helloBlock, decorator);
 

@@ -12,21 +12,19 @@
 'use strict';
 
 import type ContentState from 'ContentState';
+import type {BidiDirection} from 'UnicodeBidiDirection';
 
-const Immutable = require('immutable');
 const UnicodeBidiService = require('UnicodeBidiService');
 
 const nullthrows = require('nullthrows');
-
-const {OrderedMap} = Immutable;
 
 let bidiService;
 
 const EditorBidiService = {
   getDirectionMap: function(
     content: ContentState,
-    prevBidiMap: ?OrderedMap<any, any>,
-  ): OrderedMap<any, any> {
+    prevBidiMap: ?$ReadOnlyMap<string, BidiDirection>,
+  ): $ReadOnlyMap<string, BidiDirection> {
     if (!bidiService) {
       bidiService = new UnicodeBidiService();
     } else {
@@ -34,16 +32,21 @@ const EditorBidiService = {
     }
 
     const blockMap = content.getBlockMap();
-    const nextBidi = blockMap
-      .valueSeq()
-      .map(block => nullthrows(bidiService).getDirection(block.getText()));
-    const bidiMap = OrderedMap(blockMap.keySeq().zip(nextBidi));
+    const bidiMap = new Map();
+    let bidiChanged = false;
+    for (const [key, block] of blockMap) {
+      const direction = nullthrows(bidiService).getDirection(block.getText());
+      bidiMap.set(key, direction);
+      bidiChanged =
+        bidiChanged ||
+        (prevBidiMap != null && prevBidiMap.get(key) !== direction);
+    }
 
-    if (prevBidiMap != null && Immutable.is(prevBidiMap, bidiMap)) {
+    if (prevBidiMap != null && !bidiChanged) {
       return prevBidiMap;
     }
 
-    return bidiMap;
+    return ((bidiMap: any): $ReadOnlyMap<string, BidiDirection>);
   },
 };
 

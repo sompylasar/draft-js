@@ -18,10 +18,7 @@ const ContentBlockNode = require('ContentBlockNode');
 const SelectionState = require('SelectionState');
 
 const getSampleStateForTesting = require('getSampleStateForTesting');
-const Immutable = require('immutable');
 const removeRangeFromContentState = require('removeRangeFromContentState');
-
-const {List} = Immutable;
 
 const {contentState, selectionState} = getSampleStateForTesting();
 
@@ -35,13 +32,13 @@ const contentBlockNodes = [
     key: 'B',
     prevSibling: 'A',
     nextSibling: 'G',
-    children: List(['C', 'F']),
+    children: ['C', 'F'],
   }),
   new ContentBlockNode({
     parent: 'B',
     key: 'C',
     nextSibling: 'F',
-    children: List(['D', 'E']),
+    children: ['D', 'E'],
   }),
   new ContentBlockNode({
     parent: 'C',

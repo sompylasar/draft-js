@@ -21,6 +21,7 @@ const DataTransfer = require('DataTransfer');
 const DraftModifier = require('DraftModifier');
 const DraftPasteProcessor = require('DraftPasteProcessor');
 const EditorState = require('EditorState');
+const ContentState = require('ContentState');
 const RichTextEditorUtil = require('RichTextEditorUtil');
 
 const getEntityKeyForSelection = require('getEntityKeyForSelection');
@@ -125,7 +126,7 @@ function editOnPaste(editor: DraftEditor, e: SyntheticClipboardEvent<>): void {
         // whether the pasted text matches the internal clipboard.
         (textBlocks.length === 1 &&
           internalClipboard.size === 1 &&
-          internalClipboard.first().getText() === text)
+          Array.from(internalClipboard.values())[0].getText() === text)
       ) {
         editor.update(
           insertFragment(editor._latestEditorState, internalClipboard),
@@ -204,24 +205,25 @@ function insertFragment(
     editorState.getSelection(),
     fragment,
   );
-  // TODO: merge the entity map once we stop using DraftEntity
-  // like this:
-  // const mergedEntityMap = newContent.getEntityMap().merge(entityMap);
+  // TODO: merge the entity map once we stop using DraftEntity like this:
+  // const newEntityMap = new Map([...newContent.getEntityMap(), ...entityMap]);
 
   return EditorState.push(
     editorState,
-    newContent.set('entityMap', entityMap),
+    ContentState.set(newContent, {entityMap: entityMap}),
     'insert-fragment',
   );
 }
 
 function areTextBlocksAndClipboardEqual(
-  textBlocks: Array<string>,
+  textBlocks: $ReadOnlyArray<string>,
   blockMap: BlockMap,
 ): boolean {
   return (
     textBlocks.length === blockMap.size &&
-    blockMap.valueSeq().every((block, ii) => block.getText() === textBlocks[ii])
+    Array.from(blockMap.values()).every(
+      (block, ii) => block.getText() === textBlocks[ii],
+    )
   );
 }
 

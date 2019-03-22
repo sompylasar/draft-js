@@ -21,18 +21,16 @@ const ContentBlockNode = require('ContentBlockNode');
 const SelectionState = require('SelectionState');
 
 const getSampleStateForTesting = require('getSampleStateForTesting');
-const Immutable = require('immutable');
 const insertFragmentIntoContentState = require('insertFragmentIntoContentState');
 const invariant = require('invariant');
 
 const {contentState, selectionState} = getSampleStateForTesting();
-const {List, Map} = Immutable;
 
 const DEFAULT_BLOCK_CONFIG = {
   key: 'j',
   type: 'unstyled',
   text: 'xx',
-  data: Map({a: 1}),
+  data: new Map([['a', 1]]),
 };
 
 const initialBlock = contentState.getBlockMap().first();
@@ -42,6 +40,7 @@ const getInvariantViolation = msg => {
     /* eslint-disable fb-www/sprintf-like-args */
     invariant(false, msg);
     /* eslint-enable fb-www/sprintf-like-args */
+    return undefined;
   } catch (e) {
     return e;
   }
@@ -121,7 +120,7 @@ test('must apply multiblock fragments', () => {
       {
         key: 'k',
         text: 'yy',
-        data: Map({b: 2}),
+        data: new Map([['b', 2]]),
       },
     ]),
   );
@@ -174,14 +173,14 @@ test('must be able to insert fragment of ContentBlockNodes', () => {
       {
         key: 'B',
         text: '',
-        children: List(['C']),
+        children: ['C'],
         nextSibling: 'E',
       },
       {
         key: 'C',
         parent: 'B',
         text: '',
-        children: List(['D']),
+        children: ['D'],
       },
       {
         key: 'D',
@@ -207,7 +206,7 @@ test('must be able to insert fragment of ContentBlockNodes after nested block', 
       {
         key: 'root',
         text: '',
-        children: List(['firstChild', 'lastChild']),
+        children: ['firstChild', 'lastChild'],
       },
       {
         key: 'firstChild',
@@ -229,14 +228,14 @@ test('must be able to insert fragment of ContentBlockNodes after nested block', 
       {
         key: 'B',
         text: '',
-        children: List(['C']),
+        children: ['C'],
         nextSibling: 'E',
       },
       {
         key: 'C',
         parent: 'B',
         text: '',
-        children: List(['D']),
+        children: ['D'],
       },
       {
         key: 'D',
@@ -282,14 +281,14 @@ test('must be able to insert a fragment of ContentBlockNodes while updating the 
       {
         key: 'B',
         text: '',
-        children: List(['C']),
+        children: ['C'],
         prevSibling: 'A',
       },
       {
         key: 'C',
         parent: 'B',
         text: '',
-        children: List(['D']),
+        children: ['D'],
       },
       {
         key: 'D',
@@ -310,7 +309,7 @@ test('must be able to insert a fragment of ContentBlockNodes while updating the 
       {
         key: 'root',
         text: '',
-        children: List(['firstChild', 'lastChild']),
+        children: ['firstChild', 'lastChild'],
       },
       {
         key: 'firstChild',
@@ -337,7 +336,7 @@ test('must be able to insert a fragment of ContentBlockNodes while updating the 
       {
         key: 'B',
         text: '',
-        children: List(['C']),
+        children: ['C'],
         prevSibling: 'A',
         nextSibling: 'E',
       },
@@ -345,7 +344,7 @@ test('must be able to insert a fragment of ContentBlockNodes while updating the 
         key: 'C',
         parent: 'B',
         text: '',
-        children: List(['D']),
+        children: ['D'],
       },
       {
         key: 'D',
@@ -371,7 +370,7 @@ test('must throw an error when trying to apply ContentBlockNode fragments when s
       {
         key: 'A',
         text: '',
-        children: List(['B']),
+        children: ['B'],
       },
       {
         key: 'B',

@@ -12,18 +12,19 @@
 
 'use strict';
 
-import type {DraftEntityMutability} from 'DraftEntityMutability';
 import type {DraftEntityType} from 'DraftEntityType';
+import type {DraftEntityMutability} from 'DraftEntityMutability';
 
-const Immutable = require('immutable');
+const inheritAndUpdate = require('inheritAndUpdate');
 
-const {Record} = Immutable;
-
-const DraftEntityInstanceRecord = (Record({
-  type: 'TOKEN',
-  mutability: 'IMMUTABLE',
-  data: Object,
-}): any);
+type DraftEntityInstanceConfig = {
+  // `$Shape` without the spread does not error on missing properties. https://github.com/facebook/flow/issues/5702
+  ...$Shape<{
+    type: DraftEntityType,
+    mutability: DraftEntityMutability,
+    data: Object,
+  }>,
+};
 
 /**
  * An instance of a document entity, consisting of a `type` and relevant
@@ -36,17 +37,32 @@ const DraftEntityInstanceRecord = (Record({
  * the rendered anchor. For a mention, the ID could be used to retrieve
  * a hovercard.
  */
-class DraftEntityInstance extends DraftEntityInstanceRecord {
+class DraftEntityInstance {
+  type: DraftEntityType = 'TOKEN';
+  mutability: DraftEntityMutability = 'IMMUTABLE';
+  data: Object = {};
+
+  constructor(config?: DraftEntityInstanceConfig) {
+    Object.assign(this, config);
+  }
+
   getType(): DraftEntityType {
-    return this.get('type');
+    return this.type;
   }
 
   getMutability(): DraftEntityMutability {
-    return this.get('mutability');
+    return this.mutability;
   }
 
   getData(): Object {
-    return this.get('data');
+    return this.data;
+  }
+
+  static set(
+    instance: DraftEntityInstance,
+    put: DraftEntityInstanceConfig,
+  ): DraftEntityInstance {
+    return inheritAndUpdate(instance, put);
   }
 }
 

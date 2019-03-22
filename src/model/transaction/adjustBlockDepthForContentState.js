@@ -14,32 +14,19 @@
 import type ContentState from 'ContentState';
 import type SelectionState from 'SelectionState';
 
+const modifyBlockForContentState = require('modifyBlockForContentState');
+const inheritAndUpdate = require('inheritAndUpdate');
+
 function adjustBlockDepthForContentState(
   contentState: ContentState,
   selectionState: SelectionState,
   adjustment: number,
   maxDepth: number,
 ): ContentState {
-  const startKey = selectionState.getStartKey();
-  const endKey = selectionState.getEndKey();
-  let blockMap = contentState.getBlockMap();
-  const blocks = blockMap
-    .toSeq()
-    .skipUntil((_, k) => k === startKey)
-    .takeUntil((_, k) => k === endKey)
-    .concat([[endKey, blockMap.get(endKey)]])
-    .map(block => {
-      let depth = block.getDepth() + adjustment;
-      depth = Math.max(0, Math.min(depth, maxDepth));
-      return block.set('depth', depth);
-    });
-
-  blockMap = blockMap.merge(blocks);
-
-  return contentState.merge({
-    blockMap,
-    selectionBefore: selectionState,
-    selectionAfter: selectionState,
+  return modifyBlockForContentState(contentState, selectionState, block => {
+    let depth = block.getDepth() + adjustment;
+    depth = Math.max(0, Math.min(depth, maxDepth));
+    return inheritAndUpdate(block, {depth: depth});
   });
 }
 

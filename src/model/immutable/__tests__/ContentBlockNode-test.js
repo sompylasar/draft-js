@@ -17,21 +17,19 @@ const CharacterMetadata = require('CharacterMetadata');
 const ContentBlockNode = require('ContentBlockNode');
 const {BOLD, NONE} = require('SampleDraftInlineStyle');
 
-const Immutable = require('immutable');
-
 const entity_KEY = 'x';
 
 const DEFAUL_BLOCK_CONFIG = {
   key: 'a',
   type: 'unstyled',
   text: 'Alpha',
-  characterList: Immutable.List.of(
+  characterList: [
     CharacterMetadata.create({style: BOLD, entity: entity_KEY}),
     CharacterMetadata.EMPTY,
     CharacterMetadata.EMPTY,
     CharacterMetadata.create({style: BOLD}),
     CharacterMetadata.create({entity: entity_KEY}),
-  ),
+  ],
 };
 
 const getSampleBlock = props => {
@@ -49,9 +47,7 @@ test('must have appropriate default values', () => {
     text,
   });
 
-  const characterList = Immutable.List(
-    Immutable.Repeat(CharacterMetadata.EMPTY, text.length),
-  );
+  const characterList = new Array(text.length).fill(CharacterMetadata.EMPTY);
 
   expect(block.getKey()).toBe('a');
   expect(block.getText()).toBe('Alpha');
@@ -65,7 +61,7 @@ test('must provide default values', () => {
   const block = new ContentBlockNode();
   expect(block.getType()).toBe('unstyled');
   expect(block.getText()).toBe('');
-  expect(Immutable.is(block.getCharacterList(), Immutable.List())).toBe(true);
+  expect(block.getCharacterList()).toEqual([]);
 });
 
 test('must retrieve properties', () => {
@@ -127,7 +123,7 @@ test('must retrieve null when has no parent', () => {
 
 test('must retrieve empty List when has no children', () => {
   const block = getSampleBlock();
-  expect(block.getChildKeys()).toEqual(Immutable.List());
+  expect(block.getChildKeys()).toEqual([]);
 });
 
 test('must retrieve null when has no next sibbling', () => {

@@ -22,9 +22,6 @@ const EditorState = require('EditorState');
 const SelectionState = require('SelectionState');
 
 const getContentStateFragment = require('getContentStateFragment');
-const Immutable = require('immutable');
-
-const {List} = Immutable;
 
 const contentBlocks = [
   new ContentBlock({
@@ -54,7 +51,7 @@ const contentBlockNodes = [
   new ContentBlockNode({
     key: 'B',
     text: '',
-    children: List(['C']),
+    children: ['C'],
     nextSibling: 'D',
     prevSibling: 'A',
   }),

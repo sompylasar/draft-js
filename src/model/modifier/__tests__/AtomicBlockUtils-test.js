@@ -36,6 +36,7 @@ const getInvariantViolation = msg => {
     /* eslint-disable fb-www/sprintf-like-args */
     invariant(false, msg);
     /* eslint-enable fb-www/sprintf-like-args */
+    return undefined;
   } catch (e) {
     return e;
   }

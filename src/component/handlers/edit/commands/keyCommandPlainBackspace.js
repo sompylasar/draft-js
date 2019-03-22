@@ -12,6 +12,7 @@
 'use strict';
 
 const EditorState = require('EditorState');
+const SelectionState = require('SelectionState');
 const UnicodeUtils = require('UnicodeUtils');
 
 const moveSelectionBackward = require('moveSelectionBackward');
@@ -46,7 +47,7 @@ function keyCommandPlainBackspace(editorState: EditorState): EditorState {
   const selection = editorState.getSelection();
   return EditorState.push(
     editorState,
-    afterRemoval.set('selectionBefore', selection),
+    SelectionState.set(afterRemoval, {selectionBefore: selection}),
     selection.isCollapsed() ? 'backspace-character' : 'remove-range',
   );
 }

@@ -14,9 +14,6 @@
 jest.disableAutomock();
 
 const findRangesImmutable = require('findRangesImmutable');
-const Immutable = require('immutable');
-
-const {List} = Immutable;
 
 const returnTrue = () => true;
 

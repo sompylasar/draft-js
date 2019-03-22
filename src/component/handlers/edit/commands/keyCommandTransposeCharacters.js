@@ -13,6 +13,7 @@
 
 const DraftModifier = require('DraftModifier');
 const EditorState = require('EditorState');
+const SelectionState = require('SelectionState');
 
 const getContentStateFragment = require('getContentStateFragment');
 
@@ -47,11 +48,13 @@ function keyCommandTransposeCharacters(editorState: EditorState): EditorState {
 
   if (offset === length) {
     // The cursor is at the end of the block. Swap the last two characters.
-    removalRange = selection.set('anchorOffset', offset - 1);
+    removalRange = SelectionState.set(selection, {anchorOffset: offset - 1});
     finalSelection = selection;
   } else {
-    removalRange = selection.set('focusOffset', offset + 1);
-    finalSelection = removalRange.set('anchorOffset', offset + 1);
+    removalRange = SelectionState.set(selection, {focusOffset: offset + 1});
+    finalSelection = SelectionState.set(removalRange, {
+      anchorOffset: offset + 1,
+    });
   }
 
   // Extract the character to move as a fragment. This preserves its
@@ -66,7 +69,7 @@ function keyCommandTransposeCharacters(editorState: EditorState): EditorState {
   // After the removal, the insertion target is one character back.
   const selectionAfter = afterRemoval.getSelectionAfter();
   const targetOffset = selectionAfter.getAnchorOffset() - 1;
-  const targetRange = selectionAfter.merge({
+  const targetRange = SelectionState.set(selectionAfter, {
     anchorOffset: targetOffset,
     focusOffset: targetOffset,
   });

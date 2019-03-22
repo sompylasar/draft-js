@@ -16,12 +16,10 @@ import type ContentState from 'ContentState';
 import type {DraftBlockType} from 'DraftBlockType';
 import type {DraftInlineStyle} from 'DraftInlineStyle';
 import type {DraftRemovalDirection} from 'DraftRemovalDirection';
-import type SelectionState from 'SelectionState';
-import type {Map} from 'immutable';
 
 const CharacterMetadata = require('CharacterMetadata');
 const ContentStateInlineStyle = require('ContentStateInlineStyle');
-const Immutable = require('immutable');
+const SelectionState = require('SelectionState');
 
 const applyEntityToContentState = require('applyEntityToContentState');
 const getCharacterRemovalRange = require('getCharacterRemovalRange');
@@ -34,8 +32,7 @@ const modifyBlockForContentState = require('modifyBlockForContentState');
 const removeEntitiesAtEdges = require('removeEntitiesAtEdges');
 const removeRangeFromContentState = require('removeRangeFromContentState');
 const splitBlockInContentState = require('splitBlockInContentState');
-
-const {OrderedSet} = Immutable;
+const inheritAndUpdate = require('inheritAndUpdate');
 
 /**
  * `DraftModifier` provides a set of convenience methods that apply
@@ -62,7 +59,7 @@ const DraftModifier = {
     );
 
     const character = CharacterMetadata.create({
-      style: inlineStyle || OrderedSet(),
+      style: inlineStyle || new Set(),
       entity: entityKey || null,
     });
 
@@ -139,7 +136,7 @@ const DraftModifier = {
   ): ContentState {
     let startKey, endKey, startBlock, endBlock;
     if (rangeToRemove.getIsBackward()) {
-      rangeToRemove = rangeToRemove.merge({
+      rangeToRemove = SelectionState.set(rangeToRemove, {
         anchorKey: rangeToRemove.getFocusKey(),
         anchorOffset: rangeToRemove.getFocusOffset(),
         focusKey: rangeToRemove.getAnchorKey(),
@@ -237,7 +234,7 @@ const DraftModifier = {
     blockType: DraftBlockType,
   ): ContentState {
     return modifyBlockForContentState(contentState, selectionState, block =>
-      block.merge({type: blockType, depth: 0}),
+      inheritAndUpdate(block, {type: blockType, depth: 0}),
     );
   },
 
@@ -247,7 +244,7 @@ const DraftModifier = {
     blockData: Map<any, any>,
   ): ContentState {
     return modifyBlockForContentState(contentState, selectionState, block =>
-      block.merge({data: blockData}),
+      inheritAndUpdate(block, {data: blockData}),
     );
   },
 
@@ -257,7 +254,9 @@ const DraftModifier = {
     blockData: Map<any, any>,
   ): ContentState {
     return modifyBlockForContentState(contentState, selectionState, block =>
-      block.merge({data: block.getData().merge(blockData)}),
+      inheritAndUpdate(block, {
+        data: new Map([...block.getData(), ...blockData]),
+      }),
     );
   },
 

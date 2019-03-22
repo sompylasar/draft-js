@@ -14,6 +14,5 @@
 import type {DraftEntityMapObject} from 'DraftEntity';
 
 // TODO: when removing the deprecated Entity api
-// change this to be
-// OrderedMap<string, DraftEntityInstance>;
+// change this to be Map<string, DraftEntityInstance>;
 export type EntityMap = DraftEntityMapObject;

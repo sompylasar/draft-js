@@ -13,7 +13,6 @@
 
 import type {BlockNodeRecord} from 'BlockNodeRecord';
 import type {DraftInsertionType} from 'DraftInsertionType';
-import type SelectionState from 'SelectionState';
 
 const BlockMapBuilder = require('BlockMapBuilder');
 const CharacterMetadata = require('CharacterMetadata');
@@ -21,23 +20,22 @@ const ContentBlock = require('ContentBlock');
 const ContentBlockNode = require('ContentBlockNode');
 const DraftModifier = require('DraftModifier');
 const EditorState = require('EditorState');
+const SelectionState = require('SelectionState');
 
 const generateRandomKey = require('generateRandomKey');
 const gkx = require('gkx');
-const Immutable = require('immutable');
 const moveBlockInContentState = require('moveBlockInContentState');
+const inheritAndUpdate = require('inheritAndUpdate');
 
 const experimentalTreeDataSupport = gkx('draft_tree_data_support');
 const ContentBlockRecord = experimentalTreeDataSupport
   ? ContentBlockNode
   : ContentBlock;
 
-const {List, Repeat} = Immutable;
-
 const AtomicBlockUtils = {
   insertAtomicBlock: function(
     editorState: EditorState,
-    entityKey: string,
+    entityKey: ?string,
     character: string,
   ): EditorState {
     const contentState = editorState.getCurrentContent();
@@ -65,7 +63,7 @@ const AtomicBlockUtils = {
       key: generateRandomKey(),
       type: 'atomic',
       text: character,
-      characterList: List(Repeat(charData, character.length)),
+      characterList: Array(character.length).fill(charData),
     };
 
     let atomicDividerBlockConfig = {
@@ -97,9 +95,11 @@ const AtomicBlockUtils = {
       fragment,
     );
 
-    const newContent = withAtomicBlock.merge({
+    const newContent = inheritAndUpdate(withAtomicBlock, {
       selectionBefore: selectionState,
-      selectionAfter: withAtomicBlock.getSelectionAfter().set('hasFocus', true),
+      selectionAfter: SelectionState.set(withAtomicBlock.getSelectionAfter(), {
+        hasFocus: true,
+      }),
     });
 
     return EditorState.push(editorState, newContent, 'insert-fragment');
@@ -177,11 +177,12 @@ const AtomicBlockUtils = {
       }
     }
 
-    const newContent = withMovedAtomicBlock.merge({
+    const newContent = inheritAndUpdate(withMovedAtomicBlock, {
       selectionBefore: selectionState,
-      selectionAfter: withMovedAtomicBlock
-        .getSelectionAfter()
-        .set('hasFocus', true),
+      selectionAfter: SelectionState.set(
+        withMovedAtomicBlock.getSelectionAfter(),
+        {hasFocus: true},
+      ),
     });
 
     return EditorState.push(editorState, newContent, 'move-block');

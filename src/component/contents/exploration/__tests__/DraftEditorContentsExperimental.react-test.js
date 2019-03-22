@@ -17,14 +17,11 @@ const ContentState = require('ContentState');
 const DefaultDraftBlockRenderMap = require('DefaultDraftBlockRenderMap');
 const DraftEditorContents = require('DraftEditorContentsExperimental.react');
 const EditorState = require('EditorState');
-const Immutable = require('immutable');
 const React = require('React');
 const SelectionState = require('SelectionState');
 
 const TestHelper = require('_DraftTestHelper');
 const ReactTestRenderer = require('react-test-renderer');
-
-const {List} = Immutable;
 
 const selectionState = new SelectionState({
   anchorKey: 'A',
@@ -40,7 +37,7 @@ const contentState = ContentState.createFromBlockArray([
     key: 'A',
     text: 'Alpha',
     type: 'blockquote',
-    children: List(),
+    children: [],
   }),
 ]);
 
@@ -80,7 +77,7 @@ test('renders ContentBlockNodes', () => {
       key: 'A',
       text: '',
       type: 'blockquote',
-      children: List(['B']),
+      children: ['B'],
       nextSibling: 'D',
     }),
     new ContentBlockNode({
@@ -88,7 +85,7 @@ test('renders ContentBlockNodes', () => {
       key: 'B',
       text: 'fist list item',
       type: 'ordered-list-item',
-      children: List(['C']),
+      children: ['C'],
     }),
     new ContentBlockNode({
       parent: 'B',

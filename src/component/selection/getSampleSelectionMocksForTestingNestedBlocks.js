@@ -15,8 +15,6 @@ const ContentBlockNode = require('ContentBlockNode');
 const ContentState = require('ContentState');
 const EditorState = require('EditorState');
 
-const Immutable = require('immutable');
-
 const getSampleSelectionMocksForTestingNestedBlocks = (): Object => {
   const root = document.createElement('div');
   const contents = document.createElement('div');
@@ -31,7 +29,7 @@ const getSampleSelectionMocksForTestingNestedBlocks = (): Object => {
     new ContentBlockNode({
       key: 'a',
       nextSibling: 'c',
-      children: Immutable.List.of('b'),
+      children: ['b'],
     }),
     new ContentBlockNode({
       key: 'b',
@@ -41,7 +39,7 @@ const getSampleSelectionMocksForTestingNestedBlocks = (): Object => {
     new ContentBlockNode({
       key: 'c',
       prevSibling: 'a',
-      children: Immutable.List.of('d'),
+      children: ['d'],
     }),
     new ContentBlockNode({
       key: 'd',

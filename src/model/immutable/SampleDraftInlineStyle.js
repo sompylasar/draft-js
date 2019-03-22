@@ -11,21 +11,15 @@
 
 'use strict';
 
-const {OrderedSet} = require('immutable');
-
 module.exports = {
-  BOLD: (OrderedSet.of('BOLD'): OrderedSet<string>),
-  BOLD_ITALIC: (OrderedSet.of('BOLD', 'ITALIC'): OrderedSet<string>),
-  BOLD_ITALIC_UNDERLINE: (OrderedSet.of(
-    'BOLD',
-    'ITALIC',
-    'UNDERLINE',
-  ): OrderedSet<string>),
-  BOLD_UNDERLINE: (OrderedSet.of('BOLD', 'UNDERLINE'): OrderedSet<string>),
-  CODE: (OrderedSet.of('CODE'): OrderedSet<string>),
-  ITALIC: (OrderedSet.of('ITALIC'): OrderedSet<string>),
-  ITALIC_UNDERLINE: (OrderedSet.of('ITALIC', 'UNDERLINE'): OrderedSet<string>),
-  NONE: (OrderedSet(): OrderedSet<string>),
-  STRIKETHROUGH: (OrderedSet.of('STRIKETHROUGH'): OrderedSet<string>),
-  UNDERLINE: (OrderedSet.of('UNDERLINE'): OrderedSet<string>),
+  BOLD: ['BOLD'],
+  BOLD_ITALIC: ['BOLD', 'ITALIC'],
+  BOLD_ITALIC_UNDERLINE: ['BOLD', 'ITALIC', 'UNDERLINE'],
+  BOLD_UNDERLINE: ['BOLD', 'UNDERLINE'],
+  CODE: ['CODE'],
+  ITALIC: ['ITALIC'],
+  ITALIC_UNDERLINE: ['ITALIC', 'UNDERLINE'],
+  NONE: [],
+  STRIKETHROUGH: ['STRIKETHROUGH'],
+  UNDERLINE: ['UNDERLINE'],
 };

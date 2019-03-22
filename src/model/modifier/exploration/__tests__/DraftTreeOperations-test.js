@@ -18,7 +18,6 @@ jest.mock('generateRandomKey');
 const ContentBlockNode = require('ContentBlockNode');
 const DraftTreeOperations = require('DraftTreeOperations');
 
-const Immutable = require('immutable');
 const blockMap1 = Immutable.OrderedMap({
   A: new ContentBlockNode({
     key: 'A',

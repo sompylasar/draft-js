@@ -85,15 +85,7 @@ exports[`must split apart styled spans 5`] = `true`;
 
 exports[`must split apart two decorated and undecorated 1`] = `2`;
 
-exports[`must split apart two decorated and undecorated 2`] = `true`;
-
-exports[`must split apart two decorated and undecorated 3`] = `true`;
-
 exports[`must split apart two decorators 1`] = `2`;
-
-exports[`must split apart two decorators 2`] = `true`;
-
-exports[`must split apart two decorators 3`] = `true`;
 
 exports[`must split styled spans apart within decorator 1`] = `3`;
 

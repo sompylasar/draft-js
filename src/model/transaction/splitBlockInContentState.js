@@ -12,22 +12,21 @@
 'use strict';
 
 import type {BlockMap} from 'BlockMap';
-import type ContentState from 'ContentState';
-import type SelectionState from 'SelectionState';
+import type {BlockNodeRecord} from 'BlockNodeRecord';
 
 const ContentBlockNode = require('ContentBlockNode');
+const ContentState = require('ContentState');
+const SelectionState = require('SelectionState');
 
 const generateRandomKey = require('generateRandomKey');
-const Immutable = require('immutable');
 const invariant = require('invariant');
 const modifyBlockForContentState = require('modifyBlockForContentState');
-
-const {List, Map} = Immutable;
+const inheritAndUpdate = require('inheritAndUpdate');
 
 const transformBlock = (
   key: ?string,
-  blockMap: BlockMap,
-  func: (block: ContentBlockNode) => ContentBlockNode,
+  blockMap: Map<string, BlockNodeRecord>,
+  func: (block: BlockNodeRecord) => BlockNodeRecord,
 ): void => {
   if (!key) {
     return;
@@ -47,44 +46,59 @@ const updateBlockMapLinks = (
   originalBlock: ContentBlockNode,
   belowBlock: ContentBlockNode,
 ): BlockMap => {
-  return blockMap.withMutations(blocks => {
-    const originalBlockKey = originalBlock.getKey();
-    const belowBlockKey = belowBlock.getKey();
+  const newBlockMap = new Map(blockMap.entries());
 
-    // update block parent
-    transformBlock(originalBlock.getParentKey(), blocks, block => {
-      const parentChildrenList = block.getChildKeys();
-      const insertionIndex = parentChildrenList.indexOf(originalBlockKey) + 1;
-      const newChildrenArray = parentChildrenList.toArray();
+  const originalBlockKey = originalBlock.getKey();
+  const belowBlockKey = belowBlock.getKey();
 
-      newChildrenArray.splice(insertionIndex, 0, belowBlockKey);
+  // update block parent
+  transformBlock(originalBlock.getParentKey(), newBlockMap, block => {
+    if (!(block instanceof ContentBlockNode)) {
+      return block;
+    }
 
-      return block.merge({
-        children: List(newChildrenArray),
-      });
+    const parentChildrenList = block.getChildKeys();
+    const insertionIndex = parentChildrenList.indexOf(originalBlockKey) + 1;
+
+    const newChildrenArray = Array.from(parentChildrenList);
+    newChildrenArray.splice(insertionIndex, 0, belowBlockKey);
+
+    return inheritAndUpdate(block, {
+      children: newChildrenArray,
     });
-
-    // update original next block
-    transformBlock(originalBlock.getNextSiblingKey(), blocks, block =>
-      block.merge({
-        prevSibling: belowBlockKey,
-      }),
-    );
-
-    // update original block
-    transformBlock(originalBlockKey, blocks, block =>
-      block.merge({
-        nextSibling: belowBlockKey,
-      }),
-    );
-
-    // update below block
-    transformBlock(belowBlockKey, blocks, block =>
-      block.merge({
-        prevSibling: originalBlockKey,
-      }),
-    );
   });
+
+  // update original next block
+  transformBlock(originalBlock.getNextSiblingKey(), newBlockMap, block => {
+    if (!(block instanceof ContentBlockNode)) {
+      return block;
+    }
+    return inheritAndUpdate(block, {
+      prevSibling: belowBlockKey,
+    });
+  });
+
+  // update original block
+  transformBlock(originalBlockKey, newBlockMap, block => {
+    if (!(block instanceof ContentBlockNode)) {
+      return block;
+    }
+    return inheritAndUpdate(block, {
+      nextSibling: belowBlockKey,
+    });
+  });
+
+  // update below block
+  transformBlock(belowBlockKey, newBlockMap, block => {
+    if (!(block instanceof ContentBlockNode)) {
+      return block;
+    }
+    return inheritAndUpdate(block, {
+      prevSibling: originalBlockKey,
+    });
+  });
+
+  return ((newBlockMap: any): BlockMap);
 };
 
 const splitBlockInContentState = (
@@ -96,6 +110,10 @@ const splitBlockInContentState = (
   const key = selectionState.getAnchorKey();
   const blockMap = contentState.getBlockMap();
   const blockToSplit = blockMap.get(key);
+  if (!blockToSplit) {
+    invariant(false, 'Selection anchorKey must point to an existing block.');
+  }
+
   const text = blockToSplit.getText();
 
   if (!text) {
@@ -105,7 +123,7 @@ const splitBlockInContentState = (
       blockType === 'ordered-list-item'
     ) {
       return modifyBlockForContentState(contentState, selectionState, block =>
-        block.merge({type: 'unstyled', depth: 0}),
+        inheritAndUpdate(block, {type: 'unstyled', depth: 0}),
       );
     }
   }
@@ -115,39 +133,48 @@ const splitBlockInContentState = (
   const keyBelow = generateRandomKey();
   const isExperimentalTreeBlock = blockToSplit instanceof ContentBlockNode;
 
-  const blockAbove = blockToSplit.merge({
+  const blockAbove = inheritAndUpdate(blockToSplit, {
     text: text.slice(0, offset),
     characterList: chars.slice(0, offset),
   });
-  const blockBelow = blockAbove.merge({
+  const blockBelow = inheritAndUpdate(blockAbove, {
     key: keyBelow,
     text: text.slice(offset),
     characterList: chars.slice(offset),
-    data: Map(),
+    data: new Map(),
   });
 
-  const blocksBefore = blockMap.toSeq().takeUntil(v => v === blockToSplit);
-  const blocksAfter = blockMap
-    .toSeq()
-    .skipUntil(v => v === blockToSplit)
-    .rest();
-  let newBlocks = blocksBefore
-    .concat([[key, blockAbove], [keyBelow, blockBelow]], blocksAfter)
-    .toOrderedMap();
+  const blockMapEntriesBefore = [];
+  const blockMapEntriesAfter = [];
+  let blockMapEntriesToPushTo = blockMapEntriesBefore;
+  for (const blockMapEntry of blockMap.entries()) {
+    if (blockMapEntry[1] === blockToSplit) {
+      blockMapEntriesToPushTo = blockMapEntriesAfter;
+      // do not push the blockToSplit
+    } else {
+      blockMapEntriesToPushTo.push(blockMapEntry);
+    }
+  }
+  let newBlocks = new Map([
+    ...blockMapEntriesBefore,
+    [key, blockAbove],
+    [keyBelow, blockBelow],
+    ...blockMapEntriesAfter,
+  ]);
 
   if (isExperimentalTreeBlock) {
     invariant(
-      blockToSplit.getChildKeys().isEmpty(),
+      blockToSplit.getChildKeys().length <= 0,
       'ContentBlockNode must not have children',
     );
 
     newBlocks = updateBlockMapLinks(newBlocks, blockAbove, blockBelow);
   }
 
-  return contentState.merge({
+  return ContentState.set(contentState, {
     blockMap: newBlocks,
     selectionBefore: selectionState,
-    selectionAfter: selectionState.merge({
+    selectionAfter: SelectionState.set(selectionState, {
       anchorKey: keyBelow,
       anchorOffset: 0,
       focusKey: keyBelow,

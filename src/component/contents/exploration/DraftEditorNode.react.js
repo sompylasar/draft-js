@@ -19,20 +19,18 @@ import type ContentState from 'ContentState';
 import type {DraftDecoratorType} from 'DraftDecoratorType';
 import type SelectionState from 'SelectionState';
 import type {BidiDirection} from 'UnicodeBidiDirection';
+import type {DecoratorRange} from 'BlockTree';
 
 const DraftEditorDecoratedLeaves = require('DraftEditorDecoratedLeaves.react');
 const DraftEditorLeaf = require('DraftEditorLeaf.react');
 const DraftOffsetKey = require('DraftOffsetKey');
-const Immutable = require('immutable');
 const React = require('React');
 
 const cx = require('cx');
 
-const {List} = Immutable;
-
 type Props = {
   block: BlockNodeRecord,
-  children: ?Array<React.Node>,
+  children: ?$ReadOnlyArray<React.Node>,
   contentState: ContentState,
   customStyleFn: Function,
   customStyleMap: Object,
@@ -41,7 +39,7 @@ type Props = {
   forceSelection: boolean,
   hasSelection: boolean,
   selection: SelectionState,
-  tree: List<any>,
+  tree: $ReadOnlyArray<DecoratorRange>,
 };
 
 class DraftEditorNode extends React.Component<Props> {
@@ -61,57 +59,53 @@ class DraftEditorNode extends React.Component<Props> {
 
     const blockKey = block.getKey();
     const text = block.getText();
-    const lastLeafSet = tree.size - 1;
+    const lastLeafSet = tree.length - 1;
 
     const children =
       this.props.children ||
-      tree
-        .map((leafSet, ii) => {
-          const decoratorKey = leafSet.get('decoratorKey');
-          const leavesForLeafSet = leafSet.get('leaves');
-          const lastLeaf = leavesForLeafSet.size - 1;
-          const Leaves = leavesForLeafSet
-            .map((leaf, jj) => {
-              const offsetKey = DraftOffsetKey.encode(blockKey, ii, jj);
-              const start = leaf.get('start');
-              const end = leaf.get('end');
-              return (
-                <DraftEditorLeaf
-                  key={offsetKey}
-                  offsetKey={offsetKey}
-                  block={block}
-                  start={start}
-                  selection={hasSelection ? selection : null}
-                  forceSelection={forceSelection}
-                  text={text.slice(start, end)}
-                  styleSet={block.getInlineStyleAt(start)}
-                  customStyleMap={customStyleMap}
-                  customStyleFn={customStyleFn}
-                  isLast={decoratorKey === lastLeafSet && jj === lastLeaf}
-                />
-              );
-            })
-            .toArray();
-
-          if (!decoratorKey || !decorator) {
-            return Leaves;
-          }
-
+      tree.map((leafSet, ii) => {
+        const decoratorKey = leafSet.decoratorKey;
+        const leavesForLeafSet = leafSet.leaves;
+        const lastLeaf = leavesForLeafSet.length - 1;
+        const Leaves = leavesForLeafSet.map((leaf, jj) => {
+          const offsetKey = DraftOffsetKey.encode(blockKey, ii, jj);
+          const start = leaf.start;
+          const end = leaf.end;
           return (
-            <DraftEditorDecoratedLeaves
+            <DraftEditorLeaf
+              key={offsetKey}
+              offsetKey={offsetKey}
               block={block}
-              children={Leaves}
-              contentState={contentState}
-              decorator={decorator}
-              decoratorKey={decoratorKey}
-              direction={direction}
-              leafSet={leafSet}
-              text={text}
-              key={ii}
+              start={start}
+              selection={hasSelection ? selection : null}
+              forceSelection={forceSelection}
+              text={text.slice(start, end)}
+              styleSet={block.getInlineStyleAt(start)}
+              customStyleMap={customStyleMap}
+              customStyleFn={customStyleFn}
+              isLast={decoratorKey === lastLeafSet && jj === lastLeaf}
             />
           );
-        })
-        .toArray();
+        });
+
+        if (!decoratorKey || !decorator) {
+          return Leaves;
+        }
+
+        return (
+          <DraftEditorDecoratedLeaves
+            block={block}
+            children={Leaves}
+            contentState={contentState}
+            decorator={decorator}
+            decoratorKey={decoratorKey}
+            direction={direction}
+            leafSet={leafSet}
+            text={text}
+            key={ii}
+          />
+        );
+      });
 
     return (
       <div

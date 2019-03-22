@@ -14,7 +14,6 @@
 import type {BlockNodeRecord} from 'BlockNodeRecord';
 import type {DraftInlineStyle} from 'DraftInlineStyle';
 import type {InlineStyleRange} from 'InlineStyleRange';
-import type {List} from 'immutable';
 
 const UnicodeUtils = require('UnicodeUtils');
 
@@ -30,15 +29,13 @@ const EMPTY_ARRAY = [];
  */
 function getEncodedInlinesForType(
   block: BlockNodeRecord,
-  styleList: List<DraftInlineStyle>,
+  styleList: Array<DraftInlineStyle>,
   styleToEncode: string,
 ): Array<InlineStyleRange> {
   const ranges = [];
 
   // Obtain an array with ranges for only the specified style.
-  const filteredInlines = styleList
-    .map(style => style.has(styleToEncode))
-    .toList();
+  const filteredInlines = styleList.map(style => style.has(styleToEncode));
 
   findRangesImmutable(
     filteredInlines,
@@ -65,16 +62,12 @@ function getEncodedInlinesForType(
 function encodeInlineStyleRanges(
   block: BlockNodeRecord,
 ): Array<InlineStyleRange> {
-  const styleList = block
-    .getCharacterList()
-    .map(c => c.getStyle())
-    .toList();
+  const styleList = block.getCharacterList().map(c => c.getStyle());
   const ranges = styleList
-    .flatten()
-    .toSet()
+    .reduce((flat, style) => flat.concat(Array.from(style)), [])
     .map(style => getEncodedInlinesForType(block, styleList, style));
 
-  return Array.prototype.concat.apply(EMPTY_ARRAY, ranges.toJS());
+  return Array.prototype.concat.apply(EMPTY_ARRAY, ranges);
 }
 
 module.exports = encodeInlineStyleRanges;

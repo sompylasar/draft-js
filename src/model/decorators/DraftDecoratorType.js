@@ -13,7 +13,6 @@
 
 import type {BlockNodeRecord} from 'BlockNodeRecord';
 import type ContentState from 'ContentState';
-import type {List} from 'immutable';
 
 /**
  * An interface for document decorator classes, allowing the creation of
@@ -28,7 +27,7 @@ export type DraftDecoratorType = {
   getDecorations(
     block: BlockNodeRecord,
     contentState: ContentState,
-  ): List<?string>,
+  ): Array<?string>,
 
   /**
    * Given a decorator key, return the component to use when rendering

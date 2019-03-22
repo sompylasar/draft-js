@@ -18,7 +18,7 @@ import type {DraftDecoratorType} from 'DraftDecoratorType';
 import type {DraftInlineStyle} from 'DraftInlineStyle';
 import type SelectionState from 'SelectionState';
 import type {BidiDirection} from 'UnicodeBidiDirection';
-import type {List} from 'immutable';
+import type {DecoratorRange} from 'BlockTree';
 
 const DraftEditorLeaf = require('DraftEditorLeaf.react');
 const DraftOffsetKey = require('DraftOffsetKey');
@@ -51,7 +51,7 @@ type Props = {
   offsetKey: string,
   selection: SelectionState,
   startIndent?: boolean,
-  tree: List<any>,
+  tree: $ReadOnlyArray<DecoratorRange>,
 };
 
 /**
@@ -133,89 +133,85 @@ class DraftEditorBlock extends React.Component<Props> {
     }
   }
 
-  _renderChildren(): Array<React.Node> {
+  _renderChildren(): $ReadOnlyArray<React.Node> {
     const block = this.props.block;
     const blockKey = block.getKey();
     const text = block.getText();
-    const lastLeafSet = this.props.tree.size - 1;
+    const lastLeafSet = this.props.tree.length - 1;
     const hasSelection = isBlockOnSelectionEdge(this.props.selection, blockKey);
 
-    return this.props.tree
-      .map((leafSet, ii) => {
-        const leavesForLeafSet = leafSet.get('leaves');
-        const lastLeaf = leavesForLeafSet.size - 1;
-        const leaves = leavesForLeafSet
-          .map((leaf, jj) => {
-            const offsetKey = DraftOffsetKey.encode(blockKey, ii, jj);
-            const start = leaf.get('start');
-            const end = leaf.get('end');
-            return (
-              <DraftEditorLeaf
-                key={offsetKey}
-                offsetKey={offsetKey}
-                block={block}
-                start={start}
-                selection={hasSelection ? this.props.selection : null}
-                forceSelection={this.props.forceSelection}
-                text={text.slice(start, end)}
-                styleSet={block.getInlineStyleAt(start)}
-                customStyleMap={this.props.customStyleMap}
-                customStyleFn={this.props.customStyleFn}
-                isLast={ii === lastLeafSet && jj === lastLeaf}
-              />
-            );
-          })
-          .toArray();
-
-        const decoratorKey = leafSet.get('decoratorKey');
-        if (decoratorKey == null) {
-          return leaves;
-        }
-
-        if (!this.props.decorator) {
-          return leaves;
-        }
-
-        const decorator = nullthrows(this.props.decorator);
-
-        const DecoratorComponent = decorator.getComponentForKey(decoratorKey);
-        if (!DecoratorComponent) {
-          return leaves;
-        }
-
-        const decoratorProps = decorator.getPropsForKey(decoratorKey);
-        const decoratorOffsetKey = DraftOffsetKey.encode(blockKey, ii, 0);
-        const start = leavesForLeafSet.first().get('start');
-        const end = leavesForLeafSet.last().get('end');
-        const decoratedText = text.slice(start, end);
-        const entityKey = block.getEntityAt(leafSet.get('start'));
-
-        // Resetting dir to the same value on a child node makes Chrome/Firefox
-        // confused on cursor movement. See http://jsfiddle.net/d157kLck/3/
-        const dir = UnicodeBidiDirection.getHTMLDirIfDifferent(
-          UnicodeBidi.getDirection(decoratedText),
-          this.props.direction,
-        );
-
-        const commonProps: DraftDecoratorComponentProps = {
-          contentState: this.props.contentState,
-          decoratedText,
-          dir: dir,
-          key: decoratorOffsetKey,
-          start,
-          end,
-          blockKey,
-          entityKey,
-          offsetKey: decoratorOffsetKey,
-        };
-
+    return this.props.tree.map((leafSet, ii) => {
+      const leavesForLeafSet = leafSet.leaves;
+      const lastLeaf = leavesForLeafSet.length - 1;
+      const leaves = leavesForLeafSet.map((leaf, jj) => {
+        const offsetKey = DraftOffsetKey.encode(blockKey, ii, jj);
+        const start = leaf.start;
+        const end = leaf.end;
         return (
-          <DecoratorComponent {...decoratorProps} {...commonProps}>
-            {leaves}
-          </DecoratorComponent>
+          <DraftEditorLeaf
+            key={offsetKey}
+            offsetKey={offsetKey}
+            block={block}
+            start={start}
+            selection={hasSelection ? this.props.selection : null}
+            forceSelection={this.props.forceSelection}
+            text={text.slice(start, end)}
+            styleSet={block.getInlineStyleAt(start)}
+            customStyleMap={this.props.customStyleMap}
+            customStyleFn={this.props.customStyleFn}
+            isLast={ii === lastLeafSet && jj === lastLeaf}
+          />
         );
-      })
-      .toArray();
+      });
+
+      const decoratorKey = leafSet.decoratorKey;
+      if (decoratorKey == null) {
+        return leaves;
+      }
+
+      if (!this.props.decorator) {
+        return leaves;
+      }
+
+      const decorator = nullthrows(this.props.decorator);
+
+      const DecoratorComponent = decorator.getComponentForKey(decoratorKey);
+      if (!DecoratorComponent) {
+        return leaves;
+      }
+
+      const decoratorProps = decorator.getPropsForKey(decoratorKey);
+      const decoratorOffsetKey = DraftOffsetKey.encode(blockKey, ii, 0);
+      const start = leavesForLeafSet[0].start;
+      const end = leavesForLeafSet[leavesForLeafSet.length - 1].end;
+      const decoratedText = text.slice(start, end);
+      const entityKey = block.getEntityAt(leafSet.start);
+
+      // Resetting dir to the same value on a child node makes Chrome/Firefox
+      // confused on cursor movement. See http://jsfiddle.net/d157kLck/3/
+      const dir = UnicodeBidiDirection.getHTMLDirIfDifferent(
+        UnicodeBidi.getDirection(decoratedText),
+        this.props.direction,
+      );
+
+      const commonProps: DraftDecoratorComponentProps = {
+        contentState: this.props.contentState,
+        decoratedText,
+        dir: dir,
+        key: decoratorOffsetKey,
+        start,
+        end,
+        blockKey,
+        entityKey,
+        offsetKey: decoratorOffsetKey,
+      };
+
+      return (
+        <DecoratorComponent {...decoratorProps} {...commonProps}>
+          {leaves}
+        </DecoratorComponent>
+      );
+    });
   }
 
   render(): React.Node {

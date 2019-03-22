@@ -209,23 +209,23 @@ function editOnBeforeInput(
     const oldBlockTree = editorState.getBlockTree(anchorKey);
     const newBlockTree = newEditorState.getBlockTree(anchorKey);
     mustPreventNative =
-      oldBlockTree.size !== newBlockTree.size ||
+      oldBlockTree.length !== newBlockTree.length ||
       oldBlockTree.zip(newBlockTree).some(([oldLeafSet, newLeafSet]) => {
         // selectionStart is guaranteed to be selectionEnd here
-        const oldStart = oldLeafSet.get('start');
+        const oldStart = oldLeafSet.start;
         const adjustedStart =
           oldStart + (oldStart >= selectionStart ? chars.length : 0);
-        const oldEnd = oldLeafSet.get('end');
+        const oldEnd = oldLeafSet.end;
         const adjustedEnd =
           oldEnd + (oldEnd >= selectionStart ? chars.length : 0);
         return (
           // Different decorators
-          oldLeafSet.get('decoratorKey') !== newLeafSet.get('decoratorKey') ||
+          oldLeafSet.decoratorKey !== newLeafSet.decoratorKey ||
           // Different number of inline styles
-          oldLeafSet.get('leaves').size !== newLeafSet.get('leaves').size ||
+          oldLeafSet.leaves.size !== newLeafSet.leaves.size ||
           // Different effective decorator position
-          adjustedStart !== newLeafSet.get('start') ||
-          adjustedEnd !== newLeafSet.get('end')
+          adjustedStart !== newLeafSet.start ||
+          adjustedEnd !== newLeafSet.end
         );
       });
   }

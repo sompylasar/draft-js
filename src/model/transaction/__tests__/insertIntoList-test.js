@@ -13,7 +13,6 @@
 
 jest.disableAutomock();
 
-const Immutable = require('immutable');
 const insertIntoList = require('insertIntoList');
 
 const SAMPLE_LIST = Immutable.List.of(0, 1, 2, 3, 4);

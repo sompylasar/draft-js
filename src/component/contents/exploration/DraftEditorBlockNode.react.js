@@ -24,6 +24,7 @@ import type {DraftInlineStyle} from 'DraftInlineStyle';
 import type EditorState from 'EditorState';
 import type SelectionState from 'SelectionState';
 import type {BidiDirection} from 'UnicodeBidiDirection';
+import type {DecoratorRange} from 'BlockTree';
 
 const DraftEditorNode = require('DraftEditorNode.react');
 const DraftOffsetKey = require('DraftOffsetKey');
@@ -35,14 +36,12 @@ const Style = require('Style');
 const getElementPosition = require('getElementPosition');
 const getScrollPosition = require('getScrollPosition');
 const getViewportDimensions = require('getViewportDimensions');
-const Immutable = require('immutable');
 const invariant = require('invariant');
+const nullthrows = require('nullthrows');
 
 const SCROLL_BUFFER = 10;
 
-const {List} = Immutable;
-
-// we should harden up the bellow flow types to make them more strict
+// we should harden up the below flow types to make them more strict
 type CustomRenderConfig = Object;
 type DraftRenderConfig = Object;
 type BlockRenderFn = (block: BlockNodeRecord) => ?Object;
@@ -64,7 +63,7 @@ type Props = {
   forceSelection: boolean,
   selection: SelectionState,
   startIndent?: boolean,
-  tree: List<any>,
+  tree: ?$ReadOnlyArray<DecoratorRange>,
 };
 
 /**
@@ -97,10 +96,10 @@ const applyWrapperElementToSiblings = (
   wrapperTemplate: *,
   Element: string,
   nodes: Array<React.Node>,
-): Array<React.Node> => {
+): $ReadOnlyArray<React.Node> => {
   const wrappedSiblings = [];
 
-  // we check back until we find a sibbling that does not have same wrapper
+  // we check back until we find a sibling that does not have same wrapper
   for (const sibling: any of nodes.reverse()) {
     if (sibling.type !== Element) {
       break;
@@ -134,11 +133,12 @@ const getDraftRenderConfig = (
   blockRenderMap: DraftBlockRenderMap,
 ): DraftRenderConfig => {
   const configForType =
-    blockRenderMap.get(block.getType()) || blockRenderMap.get('unstyled');
+    blockRenderMap.get(block.getType()) ||
+    nullthrows(blockRenderMap.get('unstyled'));
 
   const wrapperTemplate = configForType.wrapper;
   const Element =
-    configForType.element || blockRenderMap.get('unstyled').element;
+    configForType.element || nullthrows(blockRenderMap.get('unstyled')).element;
 
   return {
     Element,
@@ -202,7 +202,7 @@ const getElementPropsConfig = (
 class DraftEditorBlockNode extends React.Component<Props> {
   shouldComponentUpdate(nextProps: Props): boolean {
     const {block, direction, tree} = this.props;
-    const isContainerNode = !block.getChildKeys().isEmpty();
+    const isContainerNode = block.getChildKeys().length > 0;
     const blockHasChanged =
       block !== nextProps.block ||
       tree !== nextProps.tree ||

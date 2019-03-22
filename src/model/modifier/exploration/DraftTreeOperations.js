@@ -17,7 +17,6 @@ const ContentBlockNode = require('ContentBlockNode');
 const DraftTreeInvariants = require('DraftTreeInvariants');
 
 const generateRandomKey = require('generateRandomKey');
-const Immutable = require('immutable');
 const invariant = require('invariant');
 
 type SiblingInsertPosition = 'previous' | 'next';

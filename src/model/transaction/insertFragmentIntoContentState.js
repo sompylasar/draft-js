@@ -13,18 +13,16 @@
 
 import type {BlockMap} from 'BlockMap';
 import type {BlockNodeRecord} from 'BlockNodeRecord';
-import type ContentState from 'ContentState';
-import type SelectionState from 'SelectionState';
 
+const ContentState = require('ContentState');
+const SelectionState = require('SelectionState');
 const BlockMapBuilder = require('BlockMapBuilder');
 const ContentBlockNode = require('ContentBlockNode');
-const Immutable = require('immutable');
 
 const insertIntoList = require('insertIntoList');
 const invariant = require('invariant');
 const randomizeBlockMapKeys = require('randomizeBlockMapKeys');
-
-const {List} = Immutable;
+const inheritAndUpdate = require('inheritAndUpdate');
 
 const updateExistingBlock = (
   contentState: ContentState,
@@ -40,7 +38,7 @@ const updateExistingBlock = (
   const finalKey = targetKey;
   const finalOffset = targetOffset + fragmentBlock.getText().length;
 
-  const newBlock = targetBlock.merge({
+  const newBlock = inheritAndUpdate(targetBlock, {
     text:
       text.slice(0, targetOffset) +
       fragmentBlock.getText() +
@@ -53,10 +51,13 @@ const updateExistingBlock = (
     data: fragmentBlock.getData(),
   });
 
-  return contentState.merge({
-    blockMap: blockMap.set(targetKey, newBlock),
+  const newBlockMap = new Map(blockMap);
+  newBlockMap.set(targetKey, newBlock);
+
+  return ContentState.set(contentState, {
+    blockMap: newBlockMap,
     selectionBefore: selectionState,
-    selectionAfter: selectionState.merge({
+    selectionAfter: SelectionState.set(selectionState, {
       anchorKey: finalKey,
       anchorOffset: finalOffset,
       focusKey: finalKey,
@@ -81,9 +82,9 @@ const updateHead = (
   // Modify head portion of block.
   const headText = text.slice(0, targetOffset);
   const headCharacters = chars.slice(0, targetOffset);
-  const appendToHead = fragment.first();
+  const appendToHead = fragment.values().next().value;
 
-  return block.merge({
+  return inheritAndUpdate(block, {
     text: headText + appendToHead.getText(),
     characterList: headCharacters.concat(appendToHead.getCharacterList()),
     type: headText ? block.getType() : appendToHead.getType(),
@@ -108,9 +109,10 @@ const updateTail = (
   const blockSize = text.length;
   const tailText = text.slice(targetOffset, blockSize);
   const tailCharacters = chars.slice(targetOffset, blockSize);
-  const prependToTail = fragment.last();
+  const fragmentBlocks = Array.from(fragment.values());
+  const prependToTail = fragmentBlocks[fragmentBlocks.length - 1];
 
-  return prependToTail.merge({
+  return inheritAndUpdate(prependToTail, {
     text: prependToTail.getText() + tailText,
     characterList: prependToTail.getCharacterList().concat(tailCharacters),
     data: prependToTail.getData(),
@@ -193,9 +195,9 @@ const updateBlockMapLinks = (
     }
 
     // update fragment parent links
-    fragmentRootBlocks.forEach(blockKey =>
-      blockMapState.setIn([blockKey, 'parent'], targetParentKey),
-    );
+    fragmentRootBlocks.forEach(blockKey => {
+      blockMapState.setIn([blockKey, 'parent'], targetParentKey);
+    });
 
     // update targetBlock parent child links
     if (targetParentKey) {
@@ -205,15 +207,12 @@ const updateBlockMapLinks = (
       const targetBlockIndex = originalTargetParentChildKeys.indexOf(targetKey);
       const insertionIndex = targetBlockIndex + 1;
 
-      const newChildrenKeysArray = originalTargetParentChildKeys.toArray();
+      const newChildrenKeysArray = Array.from(originalTargetParentChildKeys);
 
       // insert fragment children
       newChildrenKeysArray.splice(insertionIndex, 0, ...fragmentRootBlocks);
 
-      blockMapState.setIn(
-        [targetParentKey, 'children'],
-        List(newChildrenKeysArray),
-      );
+      blockMapState.setIn([targetParentKey, 'children'], newChildrenKeysArray);
     }
   });
 };
@@ -236,7 +235,7 @@ const insertFragment = (
   const finalKey = tail.getKey();
   const shouldNotUpdateFromFragmentBlock =
     isTreeBasedBlockMap &&
-    (!target.getChildKeys().isEmpty() || !head.getChildKeys().isEmpty());
+    (target.getChildKeys().length > 0 || head.getChildKeys().length > 0);
 
   blockMap.forEach((block, blockKey) => {
     if (blockKey !== targetKey) {
@@ -273,10 +272,10 @@ const insertFragment = (
     );
   }
 
-  return contentState.merge({
+  return ContentState.set(contentState, {
     blockMap: updatedBlockMap,
     selectionBefore: selectionState,
-    selectionAfter: selectionState.merge({
+    selectionAfter: SelectionState.set(selectionState, {
       anchorKey: finalKey,
       anchorOffset: finalOffset,
       focusKey: finalKey,
@@ -305,7 +304,7 @@ const insertFragmentIntoContentState = (
 
   if (targetBlock instanceof ContentBlockNode) {
     invariant(
-      targetBlock.getChildKeys().isEmpty(),
+      targetBlock.getChildKeys().length <= 0,
       '`insertFragment` should not be called when a container node is selected.',
     );
   }

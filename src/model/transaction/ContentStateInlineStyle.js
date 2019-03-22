@@ -15,7 +15,8 @@ import type ContentState from 'ContentState';
 import type SelectionState from 'SelectionState';
 
 const CharacterMetadata = require('CharacterMetadata');
-const {Map} = require('immutable');
+const modifyBlockForContentState = require('modifyBlockForContentState');
+const inheritAndUpdate = require('inheritAndUpdate');
 
 const ContentStateInlineStyle = {
   add: function(
@@ -41,17 +42,15 @@ function modifyInlineStyle(
   inlineStyle: string,
   addOrRemove: boolean,
 ): ContentState {
-  const blockMap = contentState.getBlockMap();
   const startKey = selectionState.getStartKey();
   const startOffset = selectionState.getStartOffset();
   const endKey = selectionState.getEndKey();
   const endOffset = selectionState.getEndOffset();
 
-  const newBlocks = blockMap
-    .skipUntil((_, k) => k === startKey)
-    .takeUntil((_, k) => k === endKey)
-    .concat(Map([[endKey, blockMap.get(endKey)]]))
-    .map((block, blockKey) => {
+  return modifyBlockForContentState(
+    contentState,
+    selectionState,
+    (block, blockKey) => {
       let sliceStart;
       let sliceEnd;
 
@@ -63,27 +62,19 @@ function modifyInlineStyle(
         sliceEnd = blockKey === endKey ? endOffset : block.getLength();
       }
 
-      let chars = block.getCharacterList();
+      let chars = [...block.getCharacterList()];
       let current;
       while (sliceStart < sliceEnd) {
-        current = chars.get(sliceStart);
-        chars = chars.set(
-          sliceStart,
-          addOrRemove
-            ? CharacterMetadata.applyStyle(current, inlineStyle)
-            : CharacterMetadata.removeStyle(current, inlineStyle),
-        );
+        current = chars[sliceStart];
+        chars[sliceStart] = addOrRemove
+          ? CharacterMetadata.applyStyle(current, inlineStyle)
+          : CharacterMetadata.removeStyle(current, inlineStyle);
         sliceStart++;
       }
 
-      return block.set('characterList', chars);
-    });
-
-  return contentState.merge({
-    blockMap: blockMap.merge(newBlocks),
-    selectionBefore: selectionState,
-    selectionAfter: selectionState,
-  });
+      return inheritAndUpdate(block, {characterList: chars});
+    },
+  );
 }
 
 module.exports = ContentStateInlineStyle;

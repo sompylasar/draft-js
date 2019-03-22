@@ -24,7 +24,6 @@ const ContentState = require('ContentState');
 const DefaultDraftBlockRenderMap = require('DefaultDraftBlockRenderMap');
 const DraftEditorBlockNode = require('DraftEditorBlockNode.react');
 const EditorState = require('EditorState');
-const Immutable = require('immutable');
 const React = require('React');
 const SelectionState = require('SelectionState');
 const Style = require('Style');
@@ -36,13 +35,11 @@ const getScrollPosition = require('getScrollPosition');
 const getViewportDimensions = require('getViewportDimensions');
 const ReactTestRenderer = require('react-test-renderer');
 
-const {List} = Immutable;
-
 const rootBlock = new ContentBlockNode({
   key: 'A',
   text: '',
   type: 'blockquote',
-  children: List(['B', 'C', 'D']),
+  children: ['B', 'C', 'D'],
 });
 
 const contentState = ContentState.createFromBlockArray([
@@ -53,7 +50,7 @@ const contentState = ContentState.createFromBlockArray([
     type: 'header-three',
     key: 'B',
     text: 'Left',
-    children: List([]),
+    children: [],
   }),
   new ContentBlockNode({
     parent: 'A',
@@ -62,7 +59,7 @@ const contentState = ContentState.createFromBlockArray([
     nextSibling: 'D',
     key: 'C',
     text: 'Middle',
-    children: List([]),
+    children: [],
   }),
   new ContentBlockNode({
     parent: 'A',
@@ -70,7 +67,7 @@ const contentState = ContentState.createFromBlockArray([
     type: 'header-two',
     key: 'D',
     text: 'Right',
-    children: List([]),
+    children: [],
   }),
 ]);
 
@@ -162,7 +159,7 @@ test('renders block with child that have wrapperElement', () => {
     key: 'A',
     text: '',
     type: 'blockquote',
-    children: List(['B']),
+    children: ['B'],
   });
 
   const contentState = ContentState.createFromBlockArray([
@@ -188,7 +185,7 @@ test('renders block with children that have same wrapperElement', () => {
     key: 'A',
     text: '',
     type: 'blockquote',
-    children: List(['B', 'C']),
+    children: ['B', 'C'],
   });
 
   const contentState = ContentState.createFromBlockArray([
@@ -222,7 +219,7 @@ test('renders block with nested child that have same wrapperElement', () => {
     key: 'A',
     text: '',
     type: 'blockquote',
-    children: List(['B']),
+    children: ['B'],
   });
 
   const contentState = ContentState.createFromBlockArray([
@@ -232,7 +229,7 @@ test('renders block with nested child that have same wrapperElement', () => {
       key: 'B',
       text: '',
       type: 'unordered-list-item',
-      children: List(['C']),
+      children: ['C'],
     }),
     new ContentBlockNode({
       parent: 'B',
@@ -255,7 +252,7 @@ test('renders block with nested child that is of different block type', () => {
     key: 'A',
     text: '',
     type: 'blockquote',
-    children: List(['B']),
+    children: ['B'],
   });
 
   const contentState = ContentState.createFromBlockArray([
@@ -265,7 +262,7 @@ test('renders block with nested child that is of different block type', () => {
       key: 'B',
       text: 'fist list item',
       type: 'ordered-list-item',
-      children: List(['C']),
+      children: ['C'],
     }),
     new ContentBlockNode({
       parent: 'B',
@@ -288,7 +285,7 @@ test('renders block with nested child that have different wrapperElement', () =>
     key: 'A',
     text: '',
     type: 'blockquote',
-    children: List(['B']),
+    children: ['B'],
   });
 
   const contentState = ContentState.createFromBlockArray([
@@ -298,7 +295,7 @@ test('renders block with nested child that have different wrapperElement', () =>
       key: 'B',
       text: '',
       type: 'unordered-list-item',
-      children: List(['C']),
+      children: ['C'],
     }),
     new ContentBlockNode({
       parent: 'B',
@@ -321,7 +318,7 @@ test('renders block with nested children with decorator', () => {
     key: 'A',
     text: '',
     type: 'blockquote',
-    children: List(['B']),
+    children: ['B'],
   });
 
   const contentState = ContentState.createFromBlockArray([
@@ -331,7 +328,7 @@ test('renders block with nested children with decorator', () => {
       key: 'B',
       text: 'fist list item',
       type: 'ordered-list-item',
-      children: List(['C']),
+      children: ['C'],
     }),
     new ContentBlockNode({
       parent: 'B',
@@ -370,7 +367,7 @@ test('renders block with nested children with different direction', () => {
     key: 'A',
     text: '',
     type: 'blockquote',
-    children: List(['B']),
+    children: ['B'],
   });
 
   const contentState = ContentState.createFromBlockArray([
@@ -380,7 +377,7 @@ test('renders block with nested children with different direction', () => {
       key: 'B',
       text: 'fist list item',
       type: 'ordered-list-item',
-      children: List(['C']),
+      children: ['C'],
     }),
     new ContentBlockNode({
       parent: 'B',
@@ -404,7 +401,7 @@ test('renders block with nested children with custom component', () => {
     key: 'A',
     text: '',
     type: 'blockquote',
-    children: List(['B']),
+    children: ['B'],
   });
 
   const contentState = ContentState.createFromBlockArray([
@@ -414,7 +411,7 @@ test('renders block with nested children with custom component', () => {
       key: 'B',
       text: 'fist list item',
       type: 'ordered-list-item',
-      children: List(['C']),
+      children: ['C'],
     }),
     new ContentBlockNode({
       parent: 'B',
@@ -449,7 +446,7 @@ test('renders block with nested children with custom component and editable prop
     key: 'A',
     text: '',
     type: 'blockquote',
-    children: List(['B']),
+    children: ['B'],
   });
 
   const contentState = ContentState.createFromBlockArray([
@@ -459,7 +456,7 @@ test('renders block with nested children with custom component and editable prop
       key: 'B',
       text: 'fist list item',
       type: 'ordered-list-item',
-      children: List(['C']),
+      children: ['C'],
     }),
     new ContentBlockNode({
       parent: 'B',
@@ -502,7 +499,7 @@ test('renders block with nested children with blockStyleFn', () => {
     key: 'A',
     text: '',
     type: 'blockquote',
-    children: List(['B']),
+    children: ['B'],
   });
 
   const contentState = ContentState.createFromBlockArray([
@@ -512,7 +509,7 @@ test('renders block with nested children with blockStyleFn', () => {
       key: 'B',
       text: 'fist list item',
       type: 'ordered-list-item',
-      children: List(['C']),
+      children: ['C'],
     }),
     new ContentBlockNode({
       parent: 'B',

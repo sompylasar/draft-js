@@ -23,8 +23,6 @@ const ContentBlock = require('ContentBlock');
 const ContentBlockNode = require('ContentBlockNode');
 const DefaultDraftBlockRenderMap = require('DefaultDraftBlockRenderMap');
 const DraftEntity = require('DraftEntity');
-const Immutable = require('immutable');
-const {Set} = require('immutable');
 const URI = require('URI');
 
 const cx = require('cx');
@@ -33,6 +31,7 @@ const getSafeBodyFromHTML = require('getSafeBodyFromHTML');
 const gkx = require('gkx');
 const invariant = require('invariant');
 const sanitizeDraftText = require('sanitizeDraftText');
+const inheritAndUpdate = require('inheritAndUpdate');
 
 const experimentalTreeDataSupport = gkx('draft_tree_data_support');
 
@@ -45,12 +44,10 @@ type Block = {
 
 type Chunk = {
   text: string,
-  inlines: Array<DraftInlineStyle>,
-  entities: Array<string>,
-  blocks: Array<Block>,
+  inlines: $ReadOnlyArray<DraftInlineStyle>,
+  entities: $ReadOnlyArray<string>,
+  blocks: $ReadOnlyArray<Block>,
 };
-
-const {List, OrderedSet} = Immutable;
 
 const NBSP = '&nbsp;';
 const SPACE = ' ';
@@ -107,7 +104,7 @@ const EMPTY_CHUNK = {
 };
 
 const EMPTY_BLOCK = {
-  children: List(),
+  children: [],
   depth: 0,
   key: '',
   type: '',
@@ -146,7 +143,7 @@ const getBlockMapSupportedTags = (
 const getMultiMatchedType = (
   tag: string,
   lastList: ?string,
-  multiMatchExtractor: Array<Function>,
+  multiMatchExtractor: $ReadOnlyArray<Function>,
 ): ?DraftBlockType => {
   for (let ii = 0; ii < multiMatchExtractor.length; ii++) {
     const matchType = multiMatchExtractor[ii](tag, lastList);
@@ -197,39 +194,38 @@ const processInlineTag = (
 ): DraftInlineStyle => {
   const styleToCheck = inlineTags[tag];
   if (styleToCheck) {
-    currentStyle = currentStyle.add(styleToCheck).toOrderedSet();
+    currentStyle = new Set(currentStyle);
+    currentStyle.add(styleToCheck);
   } else if (node instanceof HTMLElement) {
+    currentStyle = new Set(currentStyle);
+
     const htmlElement = node;
-    currentStyle = currentStyle
-      .withMutations(style => {
-        const fontWeight = htmlElement.style.fontWeight;
-        const fontStyle = htmlElement.style.fontStyle;
-        const textDecoration = htmlElement.style.textDecoration;
+    const fontWeight = htmlElement.style.fontWeight;
+    const fontStyle = htmlElement.style.fontStyle;
+    const textDecoration = htmlElement.style.textDecoration;
 
-        if (boldValues.indexOf(fontWeight) >= 0) {
-          style.add('BOLD');
-        } else if (notBoldValues.indexOf(fontWeight) >= 0) {
-          style.remove('BOLD');
-        }
+    if (boldValues.indexOf(fontWeight) >= 0) {
+      currentStyle.add('BOLD');
+    } else if (notBoldValues.indexOf(fontWeight) >= 0) {
+      currentStyle.delete('BOLD');
+    }
 
-        if (fontStyle === 'italic') {
-          style.add('ITALIC');
-        } else if (fontStyle === 'normal') {
-          style.remove('ITALIC');
-        }
+    if (fontStyle === 'italic') {
+      currentStyle.add('ITALIC');
+    } else if (fontStyle === 'normal') {
+      currentStyle.delete('ITALIC');
+    }
 
-        if (textDecoration === 'underline') {
-          style.add('UNDERLINE');
-        }
-        if (textDecoration === 'line-through') {
-          style.add('STRIKETHROUGH');
-        }
-        if (textDecoration === 'none') {
-          style.remove('UNDERLINE');
-          style.remove('STRIKETHROUGH');
-        }
-      })
-      .toOrderedSet();
+    if (textDecoration === 'underline') {
+      currentStyle.add('UNDERLINE');
+    }
+    if (textDecoration === 'line-through') {
+      currentStyle.add('STRIKETHROUGH');
+    }
+    if (textDecoration === 'none') {
+      currentStyle.delete('UNDERLINE');
+      currentStyle.delete('STRIKETHROUGH');
+    }
   }
   return currentStyle;
 };
@@ -245,10 +241,12 @@ const joinChunks = (
   const firstInB = B.text.slice(0, 1);
 
   if (lastInA === '\r' && firstInB === '\r' && !experimentalHasNestedBlocks) {
-    A.text = A.text.slice(0, -1);
-    A.inlines.pop();
-    A.entities.pop();
-    A.blocks.pop();
+    A = {
+      text: A.text.slice(0, -1),
+      inlines: A.inlines.slice(0, -1),
+      entities: A.entities.slice(0, -1),
+      blocks: A.blocks.slice(0, -1),
+    };
   }
 
   // Kill whitespace after blocks
@@ -256,9 +254,12 @@ const joinChunks = (
     if (B.text === SPACE || B.text === '\n') {
       return A;
     } else if (firstInB === SPACE || firstInB === '\n') {
-      B.text = B.text.slice(1);
-      B.inlines.shift();
-      B.entities.shift();
+      B = {
+        text: B.text.slice(1),
+        inlines: B.inlines.slice(1),
+        entities: B.entities.slice(1),
+        blocks: B.blocks,
+      };
     }
   }
 
@@ -277,7 +278,7 @@ const joinChunks = (
  */
 const containsSemanticBlockMarkup = (
   html: string,
-  blockTags: Array<string>,
+  blockTags: $ReadOnlyArray<string>,
 ): boolean => {
   return blockTags.some(tag => html.indexOf('<' + tag) !== -1);
 };
@@ -301,7 +302,7 @@ const getWhitespaceChunk = (inEntity: ?string): Chunk => {
   return {
     ...EMPTY_CHUNK,
     text: SPACE,
-    inlines: [OrderedSet()],
+    inlines: [new Set()],
     entities,
   };
 };
@@ -310,7 +311,7 @@ const getSoftNewlineChunk = (): Chunk => {
   return {
     ...EMPTY_CHUNK,
     text: '\n',
-    inlines: [OrderedSet()],
+    inlines: [new Set()],
     entities: new Array(1),
   };
 };
@@ -329,7 +330,7 @@ const getBlockDividerChunk = (
 ): Chunk => {
   return {
     text: '\r',
-    inlines: [OrderedSet()],
+    inlines: [new Set()],
     entities: new Array(1),
     blocks: [
       getChunkedBlock({
@@ -361,7 +362,7 @@ const genFragment = (
   inlineStyle: DraftInlineStyle,
   lastList: string,
   inBlock: ?string,
-  blockTags: Array<string>,
+  blockTags: $ReadOnlyArray<string>,
   depth: number,
   blockRenderMap: DraftBlockRenderMap,
   inEntity?: ?string,
@@ -609,7 +610,7 @@ const getChunkForHTML = (
   const fragment = genFragment(
     entityMap,
     safeBody,
-    OrderedSet(),
+    new Set(),
     'ul',
     null,
     workingBlocks,
@@ -683,15 +684,13 @@ const convertChunkToContentBlocks = (chunk: Chunk): ?Array<BlockNodeRecord> => {
     const end = start + textBlock.length;
     const inlines = rawInlines.slice(start, end);
     const entities = rawEntities.slice(start, end);
-    const characterList = List(
-      inlines.map((style, index) => {
-        const data = {style, entity: (null: ?string)};
-        if (entities[index]) {
-          data.entity = entities[index];
-        }
-        return CharacterMetadata.create(data);
-      }),
-    );
+    const characterList = inlines.map((style, index) => {
+      const data = {style, entity: (null: ?string)};
+      if (entities[index]) {
+        data.entity = entities[index];
+      }
+      return CharacterMetadata.create(data);
+    });
     start = end + 1;
 
     const {depth, type, parent} = block;
@@ -701,11 +700,13 @@ const convertChunkToContentBlocks = (chunk: Chunk): ?Array<BlockNodeRecord> => {
 
     // childrens add themselves to their parents since we are iterating in order
     if (parent) {
-      const parentIndex = acc.cacheRef[parent];
-      let parentRecord = acc.contentBlocks[parentIndex];
+      const parentIndex = (acc.cacheRef[parent]: number);
+      let parentRecord = ((acc.contentBlocks[
+        parentIndex
+      ]: any): ContentBlockNode);
 
       // if parent has text we need to split it into a separate unstyled element
-      if (parentRecord.getChildKeys().isEmpty() && parentRecord.getText()) {
+      if (parentRecord.getChildKeys().length <= 0 && parentRecord.getText()) {
         const parentCharacterList = parentRecord.getCharacterList();
         const parentText = parentRecord.getText();
         parentTextNodeKey = generateRandomKey();
@@ -720,18 +721,16 @@ const convertChunkToContentBlocks = (chunk: Chunk): ?Array<BlockNodeRecord> => {
 
         acc.contentBlocks.push(textNode);
 
-        parentRecord = parentRecord.withMutations(block => {
-          block
-            .set('characterList', List())
-            .set('text', '')
-            .set('children', parentRecord.children.push(textNode.getKey()));
+        parentRecord = inheritAndUpdate(parentRecord, {
+          characterList: [],
+          text: '',
+          children: [...parentRecord.children, textNode.getKey()],
         });
       }
 
-      acc.contentBlocks[parentIndex] = parentRecord.set(
-        'children',
-        parentRecord.children.push(key),
-      );
+      acc.contentBlocks[parentIndex] = inheritAndUpdate(parentRecord, {
+        children: [...parentRecord.children, key],
+      });
     }
 
     const blockNode = new BlockNodeRecord({

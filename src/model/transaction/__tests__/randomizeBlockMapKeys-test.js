@@ -19,10 +19,7 @@ const BlockMapBuilder = require('BlockMapBuilder');
 const ContentBlock = require('ContentBlock');
 const ContentBlockNode = require('ContentBlockNode');
 
-const Immutable = require('immutable');
 const randomizeBlockMapKeys = require('randomizeBlockMapKeys');
-
-const {List} = Immutable;
 
 const assertRandomizeBlockMapKeys = blockMapArray => {
   expect(
@@ -62,12 +59,12 @@ test('must be able to randomize keys for ContentBlockNodes BlockMap and update r
     new ContentBlockNode({
       key: 'A',
       text: '',
-      children: List(['B', 'D']),
+      children: ['B', 'D'],
     }),
     new ContentBlockNode({
       key: 'B',
       parent: 'A',
-      children: List(['C']),
+      children: ['C'],
       nextSibling: 'D',
       text: '',
     }),
@@ -116,7 +113,7 @@ test('must be able to randomize keys for ContentBlockNodes BlockMap and make orp
       parent: 'A',
       prevSibling: 'B',
       nextSibling: 'G',
-      children: List(['F']),
+      children: ['F'],
     }),
     new ContentBlockNode({
       key: 'F',

@@ -52,7 +52,7 @@ function getLineHeightPx(element: Element): number {
  * produces rects of height 58px!).
  */
 function areRectsOnOneLine(
-  rects: Array<ClientRect>,
+  rects: $ReadOnlyArray<ClientRect>,
   lineHeight: number,
 ): boolean {
   let minTop = Infinity;

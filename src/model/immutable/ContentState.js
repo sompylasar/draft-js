@@ -16,104 +16,131 @@ import type {BlockNodeRecord} from 'BlockNodeRecord';
 import type DraftEntityInstance from 'DraftEntityInstance';
 import type {DraftEntityMutability} from 'DraftEntityMutability';
 import type {DraftEntityType} from 'DraftEntityType';
+import type {EntityMap} from 'EntityMap';
 
 const BlockMapBuilder = require('BlockMapBuilder');
 const CharacterMetadata = require('CharacterMetadata');
 const ContentBlock = require('ContentBlock');
 const ContentBlockNode = require('ContentBlockNode');
 const DraftEntity = require('DraftEntity');
-const Immutable = require('immutable');
 const SelectionState = require('SelectionState');
 
 const generateRandomKey = require('generateRandomKey');
+const invariant = require('invariant');
 const gkx = require('gkx');
 const sanitizeDraftText = require('sanitizeDraftText');
+const inheritAndUpdate = require('inheritAndUpdate');
 
-const {List, Record, Repeat} = Immutable;
-
-const defaultRecord: {
-  entityMap: ?any,
-  blockMap: ?BlockMap,
-  selectionBefore: ?SelectionState,
-  selectionAfter: ?SelectionState,
-} = {
-  entityMap: null,
-  blockMap: null,
-  selectionBefore: null,
-  selectionAfter: null,
+type ContentStateConfig = {
+  // `$Shape` without the spread does not error on missing properties. https://github.com/facebook/flow/issues/5702
+  ...$Shape<{
+    blockMap: BlockMap,
+    entityMap: EntityMap,
+    selectionBefore: SelectionState,
+    selectionAfter: SelectionState,
+  }>,
 };
 
-const ContentStateRecord = (Record(defaultRecord): any);
+class ContentState {
+  blockMap: BlockMap;
+  entityMap: EntityMap;
+  selectionBefore: SelectionState;
+  selectionAfter: SelectionState;
 
-class ContentState extends ContentStateRecord {
-  getEntityMap(): any {
+  constructor(config: ContentStateConfig) {
+    this.entityMap = config.entityMap || DraftEntity;
+    this.blockMap = config.blockMap || BlockMapBuilder.createFromArray([]);
+    if (!config.selectionBefore || !config.selectionAfter) {
+      const defaultSelectionState = SelectionState.createEmpty();
+      this.selectionBefore = config.selectionBefore || defaultSelectionState;
+      this.selectionAfter = config.selectionAfter || defaultSelectionState;
+    }
+  }
+
+  getEntityMap(): EntityMap {
     // TODO: update this when we fully remove DraftEntity
     return DraftEntity;
   }
 
   getBlockMap(): BlockMap {
-    return this.get('blockMap');
+    return this.blockMap;
   }
 
   getSelectionBefore(): SelectionState {
-    return this.get('selectionBefore');
+    return this.selectionBefore;
   }
 
   getSelectionAfter(): SelectionState {
-    return this.get('selectionAfter');
+    return this.selectionAfter;
   }
 
   getBlockForKey(key: string): BlockNodeRecord {
-    const block: BlockNodeRecord = this.getBlockMap().get(key);
-    return block;
+    const blockForKey = this.getBlockMap().get(key);
+    invariant(
+      blockForKey,
+      'BlockMap is expected to contain block for key: ' + key,
+    );
+    return blockForKey;
   }
 
   getKeyBefore(key: string): ?string {
-    return this.getBlockMap()
-      .reverse()
-      .keySeq()
-      .skipUntil(v => v === key)
-      .skip(1)
-      .first();
+    const keys = Array.from(this.getBlockMap().keys());
+    const index = keys.lastIndexOf(key);
+    const keyBefore = keys[index + 1];
+    return keyBefore;
   }
 
   getKeyAfter(key: string): ?string {
-    return this.getBlockMap()
-      .keySeq()
-      .skipUntil(v => v === key)
-      .skip(1)
-      .first();
+    const keys = Array.from(this.getBlockMap().keys());
+    const index = keys.indexOf(key);
+    const keyAfter = keys[index + 1];
+    return keyAfter;
   }
 
   getBlockAfter(key: string): ?BlockNodeRecord {
-    return this.getBlockMap()
-      .skipUntil((_, k) => k === key)
-      .skip(1)
-      .first();
+    const entries = Array.from(this.getBlockMap().entries());
+    const index = entries.findIndex(([k]) => k === key);
+    const blockAfter = entries[index + 1][1];
+    return blockAfter;
   }
 
   getBlockBefore(key: string): ?BlockNodeRecord {
-    return this.getBlockMap()
-      .reverse()
-      .skipUntil((_, k) => k === key)
-      .skip(1)
-      .first();
+    const entries = Array.from(this.getBlockMap().entries());
+    entries.reverse();
+    const index = entries.findIndex(([k]) => k === key);
+    const blockBefore = entries[index - 1][1];
+    return blockBefore;
   }
 
   getBlocksAsArray(): Array<BlockNodeRecord> {
-    return this.getBlockMap().toArray();
+    const blocksAsArray = Array.from(this.getBlockMap().values());
+    invariant(
+      blocksAsArray.length > 0,
+      'BlockMap is expected to contain at least one block.',
+    );
+    return blocksAsArray;
   }
 
-  getFirstBlock(): BlockNodeRecord {
-    return this.getBlockMap().first();
+  getFirstBlock(): ?BlockNodeRecord {
+    const firstBlock = this.getBlockMap()
+      .values()
+      .next().value;
+    invariant(
+      firstBlock,
+      'BlockMap is expected to contain at least one block.',
+    );
+    return firstBlock;
   }
 
-  getLastBlock(): BlockNodeRecord {
-    return this.getBlockMap().last();
+  getLastBlock(): ?BlockNodeRecord {
+    const blocksAsArray = Array.from(this.getBlockMap().values());
+    const lastBlock = blocksAsArray[blocksAsArray.length - 1];
+    invariant(lastBlock, 'BlockMap is expected to contain at least one block.');
+    return lastBlock;
   }
 
   getPlainText(delimiter?: string): string {
-    return this.getBlockMap()
+    return Array.from(this.getBlockMap().values())
       .map(block => {
         return block ? block.getText() : '';
       })
@@ -127,7 +154,11 @@ class ContentState extends ContentStateRecord {
 
   hasText(): boolean {
     const blockMap = this.getBlockMap();
-    return blockMap.size > 1 || blockMap.first().getLength() > 0;
+    const blockMapFirstBlock = blockMap.values().next().value;
+    return (
+      blockMap.size > 1 ||
+      (blockMapFirstBlock ? blockMapFirstBlock.getLength() > 0 : false)
+    );
   }
 
   createEntity(
@@ -166,16 +197,17 @@ class ContentState extends ContentStateRecord {
   static createFromBlockArray(
     // TODO: update flow type when we completely deprecate the old entity API
     blocks: Array<BlockNodeRecord> | {contentBlocks: Array<BlockNodeRecord>},
-    entityMap: ?any,
+    entityMap: ?EntityMap,
   ): ContentState {
     // TODO: remove this when we completely deprecate the old entity API
     const theBlocks = Array.isArray(blocks) ? blocks : blocks.contentBlocks;
     const blockMap = BlockMapBuilder.createFromArray(theBlocks);
-    const selectionState = blockMap.isEmpty()
-      ? new SelectionState()
-      : SelectionState.createEmpty(blockMap.first().getKey());
+    const blockMapFirstBlock = blockMap.values().next().value;
+    const selectionState = blockMapFirstBlock
+      ? SelectionState.createEmpty(blockMapFirstBlock.getKey())
+      : SelectionState.createEmpty();
     return new ContentState({
-      blockMap,
+      blockMap: blockMap,
       entityMap: entityMap || DraftEntity,
       selectionBefore: selectionState,
       selectionAfter: selectionState,
@@ -196,10 +228,17 @@ class ContentState extends ContentStateRecord {
         key: generateRandomKey(),
         text: block,
         type: 'unstyled',
-        characterList: List(Repeat(CharacterMetadata.EMPTY, block.length)),
+        characterList: Array(block.length).fill(CharacterMetadata.EMPTY),
       });
     });
     return ContentState.createFromBlockArray(blocks);
+  }
+
+  static set(
+    contentState: ContentState,
+    put: ContentStateConfig,
+  ): ContentState {
+    return inheritAndUpdate(contentState, put);
   }
 }
 

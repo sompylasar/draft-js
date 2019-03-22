@@ -14,6 +14,7 @@
 import type DraftEditor from 'DraftEditor.react';
 
 const EditorState = require('EditorState');
+const SelectionState = require('SelectionState');
 
 const containsNode = require('containsNode');
 const getActiveElement = require('getActiveElement');
@@ -45,7 +46,7 @@ function editOnBlur(editor: DraftEditor, e: SyntheticEvent<>): void {
     return;
   }
 
-  const selection = currentSelection.set('hasFocus', false);
+  const selection = SelectionState.set(currentSelection, {hasFocus: false});
   editor.props.onBlur && editor.props.onBlur(e);
   editor.update(EditorState.acceptSelection(editorState, selection));
 }

@@ -11,11 +11,9 @@
 
 'use strict';
 
-import type ContentState from 'ContentState';
 import type SelectionState from 'SelectionState';
 
-const Immutable = require('immutable');
-
+const ContentState = require('ContentState');
 const applyEntityToContentBlock = require('applyEntityToContentBlock');
 
 function applyEntityToContentState(
@@ -29,19 +27,26 @@ function applyEntityToContentState(
   const endKey = selectionState.getEndKey();
   const endOffset = selectionState.getEndOffset();
 
-  const newBlocks = blockMap
-    .skipUntil((_, k) => k === startKey)
-    .takeUntil((_, k) => k === endKey)
-    .toOrderedMap()
-    .merge(Immutable.OrderedMap([[endKey, blockMap.get(endKey)]]))
-    .map((block, blockKey) => {
-      const sliceStart = blockKey === startKey ? startOffset : 0;
-      const sliceEnd = blockKey === endKey ? endOffset : block.getLength();
-      return applyEntityToContentBlock(block, sliceStart, sliceEnd, entityKey);
-    });
+  const newBlockEntries = [];
+  let loopState = 0;
+  for (const [key, block] of blockMap) {
+    if (loopState === 0 && key === startKey) {
+      ++loopState;
+    }
+    if (loopState === 1) {
+      const sliceStart = key === startKey ? startOffset : 0;
+      const sliceEnd = key === endKey ? endOffset : block.getLength();
+      newBlockEntries.push(
+        applyEntityToContentBlock(block, sliceStart, sliceEnd, entityKey),
+      );
+      if (key === endKey) {
+        break;
+      }
+    }
+  }
 
-  return contentState.merge({
-    blockMap: blockMap.merge(newBlocks),
+  return ContentState.set(contentState, {
+    blockMap: new Map([...blockMap.entries(), ...newBlockEntries]),
     selectionBefore: selectionState,
     selectionAfter: selectionState,
   });

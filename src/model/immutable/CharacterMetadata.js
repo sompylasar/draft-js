@@ -13,64 +13,81 @@
 
 import type {DraftInlineStyle} from 'DraftInlineStyle';
 
-const {Map, OrderedSet, Record} = require('immutable');
-
-// Immutable.map is typed such that the value for every key in the map
-// must be the same type
-type CharacterMetadataConfigValueType = DraftInlineStyle | ?string;
+const {EMPTY_STYLE} = require('DraftInlineStyle');
+const inheritAndUpdate = require('inheritAndUpdate');
 
 type CharacterMetadataConfig = {
-  style?: CharacterMetadataConfigValueType,
-  entity?: CharacterMetadataConfigValueType,
+  // `$Shape` without the spread does not error on missing properties. https://github.com/facebook/flow/issues/5702
+  ...$Shape<{
+    style: DraftInlineStyle,
+    entity: ?string,
+  }>,
 };
 
-const EMPTY_SET = OrderedSet();
-
-const defaultRecord: CharacterMetadataConfig = {
-  style: EMPTY_SET,
-  entity: null,
+const defaultConfig: CharacterMetadataConfig = {
+  style: EMPTY_STYLE,
+  entity: (null: ?string),
 };
 
-const CharacterMetadataRecord = (Record(defaultRecord): any);
+function hashDraftInlineStyle(styleSet?: DraftInlineStyle): string {
+  if (!styleSet) {
+    return '';
+  }
+  return Array.from(styleSet).join('\n');
+}
 
-class CharacterMetadata extends CharacterMetadataRecord {
+function hashCharacterMetadataConfig(config: CharacterMetadataConfig): string {
+  return hashDraftInlineStyle(config.style) + (config.entity || '');
+}
+
+class CharacterMetadata {
+  style: DraftInlineStyle;
+  entity: ?string;
+
+  constructor(config?: CharacterMetadataConfig) {
+    Object.assign(this, defaultConfig, config);
+  }
+
   getStyle(): DraftInlineStyle {
-    return this.get('style');
+    return this.style;
   }
 
   getEntity(): ?string {
-    return this.get('entity');
+    return this.entity;
   }
 
   hasStyle(style: string): boolean {
-    return this.getStyle().includes(style);
+    return this.getStyle().has(style);
   }
+
+  static EMPTY = new CharacterMetadata();
 
   static applyStyle(
     record: CharacterMetadata,
     style: string,
   ): CharacterMetadata {
-    const withStyle = record.set('style', record.getStyle().add(style));
-    return CharacterMetadata.create(withStyle);
+    const newStyle = new Set(record.getStyle());
+    newStyle.add(style);
+    return CharacterMetadata.set(record, {style: newStyle});
   }
 
   static removeStyle(
     record: CharacterMetadata,
     style: string,
   ): CharacterMetadata {
-    const withoutStyle = record.set('style', record.getStyle().remove(style));
-    return CharacterMetadata.create(withoutStyle);
+    const newStyle = new Set(record.getStyle());
+    newStyle.delete(style);
+    return CharacterMetadata.set(record, {style: newStyle});
   }
 
   static applyEntity(
     record: CharacterMetadata,
     entityKey: ?string,
   ): CharacterMetadata {
-    const withEntity =
-      record.getEntity() === entityKey
-        ? record
-        : record.set('entity', entityKey);
-    return CharacterMetadata.create(withEntity);
+    return CharacterMetadata.set(
+      record,
+      record.getEntity() === entityKey ? {} : {entity: entityKey},
+    );
   }
 
   /**
@@ -81,33 +98,37 @@ class CharacterMetadata extends CharacterMetadataRecord {
    */
   static create(config?: CharacterMetadataConfig): CharacterMetadata {
     if (!config) {
-      return EMPTY;
+      return CharacterMetadata.EMPTY;
     }
 
-    const defaultConfig: CharacterMetadataConfig = {
-      style: EMPTY_SET,
-      entity: (null: ?string),
-    };
-
     // Fill in unspecified properties, if necessary.
-    const configMap = Map(defaultConfig).merge(config);
+    const mergedConfig: CharacterMetadataConfig = Object.assign(
+      {},
+      defaultConfig,
+      config,
+    );
 
-    const existing: ?CharacterMetadata = pool.get(configMap);
+    const poolKey = hashCharacterMetadataConfig(mergedConfig);
+    const existing: ?CharacterMetadata = pool.get(poolKey);
     if (existing) {
       return existing;
     }
 
-    const newCharacter = new CharacterMetadata(configMap);
-    pool = pool.set(configMap, newCharacter);
+    const newCharacter = new CharacterMetadata(mergedConfig);
+    pool.set(poolKey, newCharacter);
     return newCharacter;
+  }
+
+  static set(
+    characterMetadata: CharacterMetadata,
+    put?: CharacterMetadataConfig,
+  ): CharacterMetadata {
+    return inheritAndUpdate(characterMetadata, put);
   }
 }
 
-const EMPTY = new CharacterMetadata();
-let pool: Map<Map<any, any>, CharacterMetadata> = Map([
-  [Map(defaultRecord), EMPTY],
+const pool: Map<string, CharacterMetadata> = new Map([
+  [hashCharacterMetadataConfig(defaultConfig), CharacterMetadata.EMPTY],
 ]);
-
-CharacterMetadata.EMPTY = EMPTY;
 
 module.exports = CharacterMetadata;

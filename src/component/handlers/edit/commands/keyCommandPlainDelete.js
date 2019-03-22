@@ -12,6 +12,7 @@
 'use strict';
 
 const EditorState = require('EditorState');
+const ContentState = require('ContentState');
 const UnicodeUtils = require('UnicodeUtils');
 
 const moveSelectionForward = require('moveSelectionForward');
@@ -47,7 +48,7 @@ function keyCommandPlainDelete(editorState: EditorState): EditorState {
 
   return EditorState.push(
     editorState,
-    afterRemoval.set('selectionBefore', selection),
+    ContentState.set(afterRemoval, {selectionBefore: selection}),
     selection.isCollapsed() ? 'delete-character' : 'remove-range',
   );
 }

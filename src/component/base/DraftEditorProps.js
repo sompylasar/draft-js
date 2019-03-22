@@ -138,12 +138,12 @@ export type DraftEditorProps = {
     editorState: EditorState,
   ) => DraftHandleValue,
 
-  handlePastedFiles?: (files: Array<Blob>) => DraftHandleValue,
+  handlePastedFiles?: (files: $ReadOnlyArray<Blob>) => DraftHandleValue,
 
   // Handle dropped files
   handleDroppedFiles?: (
     selection: SelectionState,
-    files: Array<Blob>,
+    files: $ReadOnlyArray<Blob>,
   ) => DraftHandleValue,
 
   // Handle other drops to prevent default text movement/insertion behaviour

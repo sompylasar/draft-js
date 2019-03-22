@@ -21,9 +21,8 @@ const getNextDelimiterBlockKey = (
   block: BlockNodeRecord,
   blockMap: BlockMap,
 ): ?string => {
-  const isExperimentalTreeBlock = block instanceof ContentBlockNode;
-
-  if (!isExperimentalTreeBlock) {
+  // isExperimentalTreeBlock
+  if (!(block instanceof ContentBlockNode)) {
     return null;
   }
 
@@ -42,13 +41,17 @@ const getNextDelimiterBlockKey = (
   let nextNonDescendantBlock = blockMap.get(parent);
   while (
     nextNonDescendantBlock &&
+    nextNonDescendantBlock instanceof ContentBlockNode &&
     !nextNonDescendantBlock.getNextSiblingKey()
   ) {
     const parentKey = nextNonDescendantBlock.getParentKey();
     nextNonDescendantBlock = parentKey ? blockMap.get(parentKey) : null;
   }
 
-  if (!nextNonDescendantBlock) {
+  if (
+    !nextNonDescendantBlock ||
+    !(nextNonDescendantBlock instanceof ContentBlockNode)
+  ) {
     return null;
   }
 

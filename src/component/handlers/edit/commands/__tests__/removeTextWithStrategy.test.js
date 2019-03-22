@@ -28,14 +28,12 @@ const BlockMapBuilder = require('BlockMapBuilder');
 const ContentBlockNode = require('ContentBlockNode');
 const EditorState = require('EditorState');
 const SelectionState = require('SelectionState');
+const ContentState = require('ContentState');
 const UnicodeUtils = require('UnicodeUtils');
 
 const getSampleStateForTesting = require('getSampleStateForTesting');
-const Immutable = require('immutable');
 const moveSelectionForward = require('moveSelectionForward');
 const removeTextWithStrategy = require('removeTextWithStrategy');
-
-const {List} = Immutable;
 
 const {contentState} = getSampleStateForTesting();
 
@@ -51,14 +49,14 @@ const contentBlockNodes = [
     prevSibling: 'A',
     nextSibling: 'G',
     type: 'ordered-list-item',
-    children: List(['C', 'F']),
+    children: ['C', 'F'],
   }),
   new ContentBlockNode({
     parent: 'B',
     key: 'C',
     nextSibling: 'F',
     type: 'blockquote',
-    children: List(['D', 'E']),
+    children: ['D', 'E'],
   }),
   new ContentBlockNode({
     parent: 'C',
@@ -111,9 +109,11 @@ const assertRemoveTextOperation = (
   const result = operation(
     EditorState.forceSelection(
       EditorState.createWithContent(
-        contentState.set('blockMap', BlockMapBuilder.createFromArray(content)),
+        ContentState.set(contentState, {
+          blockMap: BlockMapBuilder.createFromArray(content),
+        }),
       ),
-      SelectionState.createEmpty(content[0].key).merge(selection),
+      SelectionState.set(SelectionState.createEmpty(content[0].key), selection),
     ),
   );
   const expected = result.getBlockMap().toJS();

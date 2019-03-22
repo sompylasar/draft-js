@@ -17,12 +17,10 @@ const BlockMapBuilder = require('BlockMapBuilder');
 const ContentBlockNode = require('ContentBlockNode');
 const EditorState = require('EditorState');
 const NestedRichTextEditorUtil = require('NestedRichTextEditorUtil');
+const ContentState = require('ContentState');
 const SelectionState = require('SelectionState');
 
 const getSampleStateForTesting = require('getSampleStateForTesting');
-const Immutable = require('immutable');
-
-const {List} = Immutable;
 
 const {editorState, contentState, selectionState} = getSampleStateForTesting();
 const {onBackspace, onDelete, onTab} = NestedRichTextEditorUtil;
@@ -39,14 +37,14 @@ const contentBlockNodes = [
     prevSibling: 'A',
     nextSibling: 'G',
     type: 'ordered-list-item',
-    children: List(['C', 'F']),
+    children: ['C', 'F'],
   }),
   new ContentBlockNode({
     parent: 'B',
     key: 'C',
     nextSibling: 'F',
     type: 'blockquote',
-    children: List(['D', 'E']),
+    children: ['D', 'E'],
   }),
   new ContentBlockNode({
     parent: 'C',
@@ -97,18 +95,19 @@ const toggleExperimentalTreeDataSupport = enabled => {
   });
 };
 
-const insertAtomicBlock = targetEditorState => {
+const insertAtomicBlock = (targetEditorState: EditorState): EditorState => {
   const entityKey = targetEditorState
     .getCurrentContent()
     .createEntity('TEST', 'IMMUTABLE', null)
     .getLastCreatedEntityKey();
-  const character = ' ';
+  const character: string = ' ';
   const movedSelection = EditorState.moveSelectionToEnd(targetEditorState);
-  return AtomicBlockUtils.insertAtomicBlock(
+  const editorState = AtomicBlockUtils.insertAtomicBlock(
     movedSelection,
     entityKey,
     character,
   );
+  return editorState;
 };
 
 const assertNestedUtilOperation = (
@@ -119,18 +118,22 @@ const assertNestedUtilOperation = (
   const result = operation(
     EditorState.forceSelection(
       EditorState.createWithContent(
-        contentState.set('blockMap', BlockMapBuilder.createFromArray(content)),
+        ContentState.set(contentState, {
+          blockMap: BlockMapBuilder.createFromArray(content),
+        }),
       ),
-      SelectionState.createEmpty(content[0].key).merge(selection),
+      SelectionState.set(SelectionState.createEmpty(content[0].key), selection),
     ),
   );
 
   const expected =
     result instanceof EditorState
-      ? result
-          .getCurrentContent()
-          .getBlockMap()
-          .toJS()
+      ? Array.from(
+          result
+            .getCurrentContent()
+            .getBlockMap()
+            .entries(),
+        )
       : result;
 
   expect(expected).toMatchSnapshot();
@@ -338,7 +341,7 @@ const contentBlockNodes2 = [
     nextSibling: 'B',
     text: 'Item 1',
     type: 'ordered-list-item',
-    children: List([]),
+    children: [],
   }),
   new ContentBlockNode({
     key: 'B',
@@ -346,7 +349,7 @@ const contentBlockNodes2 = [
     nextSibling: 'C',
     text: 'Item 2',
     type: 'ordered-list-item',
-    children: List([]),
+    children: [],
   }),
   new ContentBlockNode({
     key: 'C',
@@ -354,7 +357,7 @@ const contentBlockNodes2 = [
     nextSibling: 'J',
     text: '',
     type: 'ordered-list-item',
-    children: List(['D', 'E', 'F', 'I']),
+    children: ['D', 'E', 'F', 'I'],
   }),
   new ContentBlockNode({
     key: 'D',
@@ -363,7 +366,7 @@ const contentBlockNodes2 = [
     nextSibling: 'E',
     text: 'Item 2a',
     type: 'ordered-list-item',
-    children: List([]),
+    children: [],
   }),
   new ContentBlockNode({
     key: 'E',
@@ -372,7 +375,7 @@ const contentBlockNodes2 = [
     nextSibling: 'F',
     text: 'Item 2b',
     type: 'ordered-list-item',
-    children: List([]),
+    children: [],
   }),
   new ContentBlockNode({
     key: 'F',
@@ -381,7 +384,7 @@ const contentBlockNodes2 = [
     nextSibling: 'I',
     text: '',
     type: 'ordered-list-item',
-    children: List(['G', 'H']),
+    children: ['G', 'H'],
   }),
   new ContentBlockNode({
     key: 'G',
@@ -390,7 +393,7 @@ const contentBlockNodes2 = [
     nextSibling: 'H',
     text: 'Item 2b i',
     type: 'ordered-list-item',
-    children: List([]),
+    children: [],
   }),
   new ContentBlockNode({
     key: 'H',
@@ -399,7 +402,7 @@ const contentBlockNodes2 = [
     nextSibling: null,
     text: 'Item 2b ii',
     type: 'ordered-list-item',
-    children: List([]),
+    children: [],
   }),
   new ContentBlockNode({
     key: 'I',
@@ -408,7 +411,7 @@ const contentBlockNodes2 = [
     nextSibling: null,
     text: 'Item 2c',
     type: 'ordered-list-item',
-    children: List([]),
+    children: [],
   }),
   new ContentBlockNode({
     key: 'J',
@@ -416,7 +419,7 @@ const contentBlockNodes2 = [
     nextSibling: null,
     text: 'Item 3',
     type: 'ordered-list-item',
-    children: List([]),
+    children: [],
   }),
 ];
 
@@ -469,7 +472,7 @@ const contentBlockNodes3 = [
     key: 'A',
     parent: null,
     text: 'alpha',
-    children: Immutable.List([]),
+    children: [],
     prevSibling: null,
     nextSibling: 'X',
     type: 'ordered-list-item',
@@ -478,7 +481,7 @@ const contentBlockNodes3 = [
     key: 'X',
     parent: null,
     text: '',
-    children: Immutable.List(['B']),
+    children: ['B'],
     prevSibling: 'A',
     nextSibling: 'C',
     type: 'ordered-list-item',
@@ -487,7 +490,7 @@ const contentBlockNodes3 = [
     key: 'B',
     parent: 'X',
     text: 'beta',
-    children: Immutable.List([]),
+    children: [],
     prevSibling: null,
     nextSibling: null,
     type: 'ordered-list-item',
@@ -496,7 +499,7 @@ const contentBlockNodes3 = [
     key: 'C',
     parent: null,
     text: 'charlie',
-    children: Immutable.List([]),
+    children: [],
     prevSibling: 'X',
     nextSibling: 'Y',
     type: 'ordered-list-item',
@@ -505,7 +508,7 @@ const contentBlockNodes3 = [
     key: 'Y',
     parent: null,
     text: '',
-    children: Immutable.List(['D', 'E']),
+    children: ['D', 'E'],
     prevSibling: 'C',
     nextSibling: null,
     type: 'ordered-list-item',
@@ -514,7 +517,7 @@ const contentBlockNodes3 = [
     key: 'D',
     parent: 'Y',
     text: 'delta',
-    children: Immutable.List([]),
+    children: [],
     prevSibling: null,
     nextSibling: 'E',
     type: 'ordered-list-item',
@@ -523,7 +526,7 @@ const contentBlockNodes3 = [
     key: 'E',
     parent: 'Y',
     text: 'epsilon',
-    children: Immutable.List([]),
+    children: [],
     prevSibling: 'D',
     nextSibling: null,
     type: 'ordered-list-item',
@@ -546,7 +549,7 @@ const contentBlockNodes4 = [
     key: 'A',
     parent: null,
     text: 'alpha',
-    children: Immutable.List([]),
+    children: [],
     prevSibling: null,
     nextSibling: 'X',
     type: 'ordered-list-item',
@@ -555,7 +558,7 @@ const contentBlockNodes4 = [
     key: 'X',
     parent: null,
     text: '',
-    children: Immutable.List(['B', 'Y']),
+    children: ['B', 'Y'],
     prevSibling: 'A',
     nextSibling: 'D',
     type: 'ordered-list-item',
@@ -564,7 +567,7 @@ const contentBlockNodes4 = [
     key: 'B',
     parent: 'X',
     text: 'beta',
-    children: Immutable.List([]),
+    children: [],
     prevSibling: null,
     nextSibling: 'Y',
     type: 'ordered-list-item',
@@ -573,7 +576,7 @@ const contentBlockNodes4 = [
     key: 'Y',
     parent: 'X',
     text: '',
-    children: Immutable.List(['C']),
+    children: ['C'],
     prevSibling: 'B',
     nextSibling: null,
     type: 'ordered-list-item',
@@ -582,7 +585,7 @@ const contentBlockNodes4 = [
     key: 'C',
     parent: 'Y',
     text: 'charlie',
-    children: Immutable.List([]),
+    children: [],
     prevSibling: null,
     nextSibling: null,
     type: 'ordered-list-item',
@@ -591,7 +594,7 @@ const contentBlockNodes4 = [
     key: 'D',
     parent: null,
     text: 'delta',
-    children: Immutable.List([]),
+    children: [],
     prevSibling: 'X',
     nextSibling: 'Z',
     type: 'ordered-list-item',
@@ -600,7 +603,7 @@ const contentBlockNodes4 = [
     key: 'Z',
     parent: null,
     text: '',
-    children: Immutable.List(['E']),
+    children: ['E'],
     prevSibling: 'D',
     nextSibling: null,
     type: 'ordered-list-item',
@@ -609,7 +612,7 @@ const contentBlockNodes4 = [
     key: 'E',
     parent: 'Z',
     text: 'epsilon',
-    children: Immutable.List([]),
+    children: [],
     prevSibling: null,
     nextSibling: null,
     type: 'ordered-list-item',
@@ -669,7 +672,7 @@ const contentBlockNodes5 = [
     nextSibling: 'X',
     text: 'alpha',
     type: 'ordered-list-item',
-    children: List([]),
+    children: [],
   }),
   new ContentBlockNode({
     key: 'X',
@@ -677,7 +680,7 @@ const contentBlockNodes5 = [
     nextSibling: 'G',
     text: '',
     type: 'ordered-list-item',
-    children: List(['B', 'C', 'D', 'E', 'F']),
+    children: ['B', 'C', 'D', 'E', 'F'],
   }),
   new ContentBlockNode({
     key: 'B',
@@ -686,7 +689,7 @@ const contentBlockNodes5 = [
     nextSibling: 'C',
     text: 'beta',
     type: 'ordered-list-item',
-    children: List([]),
+    children: [],
   }),
   new ContentBlockNode({
     key: 'C',
@@ -695,7 +698,7 @@ const contentBlockNodes5 = [
     nextSibling: 'D',
     text: 'charlie',
     type: 'ordered-list-item',
-    children: List([]),
+    children: [],
   }),
   new ContentBlockNode({
     key: 'D',
@@ -704,7 +707,7 @@ const contentBlockNodes5 = [
     nextSibling: 'E',
     text: 'delta',
     type: 'ordered-list-item',
-    children: List([]),
+    children: [],
   }),
   new ContentBlockNode({
     key: 'E',
@@ -713,7 +716,7 @@ const contentBlockNodes5 = [
     nextSibling: 'F',
     text: 'epsilon',
     type: 'ordered-list-item',
-    children: List([]),
+    children: [],
   }),
   new ContentBlockNode({
     key: 'F',
@@ -722,7 +725,7 @@ const contentBlockNodes5 = [
     nextSibling: null,
     text: 'foo',
     type: 'ordered-list-item',
-    children: List([]),
+    children: [],
   }),
   new ContentBlockNode({
     key: 'G',
@@ -730,7 +733,7 @@ const contentBlockNodes5 = [
     nextSibling: null,
     text: 'gamma',
     type: 'ordered-list-item',
-    children: List([]),
+    children: [],
   }),
 ];
 
@@ -751,7 +754,7 @@ const contentBlockNodes6 = [
     key: 'A',
     parent: null,
     text: 'alpha',
-    children: Immutable.List([]),
+    children: [],
     prevSibling: null,
     nextSibling: 'X',
     type: 'ordered-list-item',
@@ -760,7 +763,7 @@ const contentBlockNodes6 = [
     key: 'X',
     parent: null,
     text: '',
-    children: Immutable.List(['B', 'Y']),
+    children: ['B', 'Y'],
     prevSibling: 'A',
     nextSibling: null,
     type: 'ordered-list-item',
@@ -769,7 +772,7 @@ const contentBlockNodes6 = [
     key: 'B',
     parent: 'X',
     text: 'beta',
-    children: Immutable.List([]),
+    children: [],
     prevSibling: null,
     nextSibling: 'Y',
     type: 'ordered-list-item',
@@ -778,7 +781,7 @@ const contentBlockNodes6 = [
     key: 'Y',
     parent: 'X',
     text: '',
-    children: Immutable.List(['C']),
+    children: ['C'],
     prevSibling: 'B',
     nextSibling: null,
     type: 'ordered-list-item',
@@ -787,7 +790,7 @@ const contentBlockNodes6 = [
     key: 'C',
     parent: 'Y',
     text: 'charlie',
-    children: Immutable.List([]),
+    children: [],
     prevSibling: null,
     nextSibling: null,
     type: 'ordered-list-item',
@@ -811,7 +814,7 @@ const contentBlockNodes7 = [
     key: 'A',
     parent: null,
     text: 'alpha',
-    children: Immutable.List([]),
+    children: [],
     prevSibling: null,
     nextSibling: 'X',
     type: 'ordered-list-item',
@@ -820,7 +823,7 @@ const contentBlockNodes7 = [
     key: 'X',
     parent: null,
     text: '',
-    children: Immutable.List(['B', 'Y', 'E']),
+    children: ['B', 'Y', 'E'],
     prevSibling: 'A',
     nextSibling: null,
     type: 'ordered-list-item',
@@ -829,7 +832,7 @@ const contentBlockNodes7 = [
     key: 'B',
     parent: 'X',
     text: 'beta',
-    children: Immutable.List([]),
+    children: [],
     prevSibling: null,
     nextSibling: 'Y',
     type: 'ordered-list-item',
@@ -838,7 +841,7 @@ const contentBlockNodes7 = [
     key: 'Y',
     parent: 'X',
     text: '',
-    children: Immutable.List(['C', 'D']),
+    children: ['C', 'D'],
     prevSibling: 'B',
     nextSibling: 'E',
     type: 'ordered-list-item',
@@ -847,7 +850,7 @@ const contentBlockNodes7 = [
     key: 'C',
     parent: 'Y',
     text: 'charlie',
-    children: Immutable.List([]),
+    children: [],
     prevSibling: null,
     nextSibling: 'D',
     type: 'ordered-list-item',
@@ -856,7 +859,7 @@ const contentBlockNodes7 = [
     key: 'D',
     parent: 'Y',
     text: 'delta',
-    children: Immutable.List([]),
+    children: [],
     prevSibling: 'C',
     nextSibling: null,
     type: 'ordered-list-item',
@@ -865,7 +868,7 @@ const contentBlockNodes7 = [
     key: 'E',
     parent: 'X',
     text: 'epsilon',
-    children: Immutable.List([]),
+    children: [],
     prevSibling: 'Y',
     nextSibling: null,
     type: 'ordered-list-item',
@@ -890,7 +893,7 @@ const contentBlockNodes8 = [
     key: 'A',
     parent: null,
     text: 'alpha',
-    children: Immutable.List([]),
+    children: [],
     prevSibling: null,
     nextSibling: 'X',
     depth: 0,
@@ -900,7 +903,7 @@ const contentBlockNodes8 = [
     key: 'X',
     parent: null,
     text: '',
-    children: Immutable.List(['B', 'C']),
+    children: ['B', 'C'],
     prevSibling: 'A',
     nextSibling: null,
     depth: 0,
@@ -910,7 +913,7 @@ const contentBlockNodes8 = [
     key: 'B',
     parent: 'X',
     text: 'beta',
-    children: Immutable.List([]),
+    children: [],
     prevSibling: null,
     nextSibling: 'C',
     depth: 1,
@@ -920,7 +923,7 @@ const contentBlockNodes8 = [
     key: 'C',
     parent: 'X',
     text: '',
-    children: Immutable.List([]),
+    children: [],
     prevSibling: 'B',
     nextSibling: null,
     depth: 1,
@@ -946,7 +949,7 @@ const contentBlockNodes9 = [
     key: 'A',
     parent: null,
     text: 'alpha',
-    children: Immutable.List([]),
+    children: [],
     prevSibling: null,
     nextSibling: 'X',
     depth: 0,
@@ -956,7 +959,7 @@ const contentBlockNodes9 = [
     key: 'X',
     parent: null,
     text: '',
-    children: Immutable.List(['B', 'Y']),
+    children: ['B', 'Y'],
     prevSibling: 'A',
     nextSibling: null,
     depth: 0,
@@ -966,7 +969,7 @@ const contentBlockNodes9 = [
     key: 'B',
     parent: 'X',
     text: 'beta',
-    children: Immutable.List([]),
+    children: [],
     prevSibling: null,
     nextSibling: 'Y',
     depth: 1,
@@ -976,7 +979,7 @@ const contentBlockNodes9 = [
     key: 'Y',
     parent: 'X',
     text: '',
-    children: Immutable.List(['C', 'D']),
+    children: ['C', 'D'],
     prevSibling: 'B',
     nextSibling: null,
     depth: 1,
@@ -986,7 +989,7 @@ const contentBlockNodes9 = [
     key: 'C',
     parent: 'Y',
     text: 'charlie',
-    children: Immutable.List([]),
+    children: [],
     prevSibling: null,
     nextSibling: 'D',
     depth: 2,
@@ -996,7 +999,7 @@ const contentBlockNodes9 = [
     key: 'D',
     parent: 'Y',
     text: '',
-    children: Immutable.List([]),
+    children: [],
     prevSibling: 'C',
     nextSibling: null,
     depth: 2,
@@ -1029,12 +1032,15 @@ test('onSplitParent must split a nested block retaining parent', () => {
  * NestedRichTextEditorUtil can provide the same guarantees as its flat counterpart.
  */
 test('onDelete does not handle non-block-end or non-collapsed selections', () => {
-  const nonZero = selectionState.merge({anchorOffset: 2, focusOffset: 2});
+  const nonZero = SelectionState.set(selectionState, {
+    anchorOffset: 2,
+    focusOffset: 2,
+  });
   expect(
     onDelete(EditorState.forceSelection(editorState, nonZero)) === null,
   ).toMatchSnapshot();
 
-  const nonCollapsed = nonZero.merge({anchorOffset: 0});
+  const nonCollapsed = SelectionState.set(nonZero, {anchorOffset: 0});
   expect(
     onDelete(EditorState.forceSelection(editorState, nonCollapsed)) === null,
   ).toMatchSnapshot();

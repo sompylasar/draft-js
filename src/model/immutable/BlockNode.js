@@ -14,17 +14,19 @@
 import type CharacterMetadata from 'CharacterMetadata';
 import type {DraftBlockType} from 'DraftBlockType';
 import type {DraftInlineStyle} from 'DraftInlineStyle';
-import type {List, Map} from 'immutable';
 
 export type BlockNodeKey = string;
 
 export type BlockNodeConfig = {
-  characterList?: List<CharacterMetadata>,
-  data?: Map<any, any>,
-  depth?: number,
-  key?: BlockNodeKey,
-  text?: string,
-  type?: DraftBlockType,
+  // `$Shape` without the spread does not error on missing properties. https://github.com/facebook/flow/issues/5702
+  ...$Shape<{
+    characterList: $ReadOnlyArray<CharacterMetadata>,
+    data: $ReadOnlyMap<any, any>,
+    depth: number,
+    key: BlockNodeKey,
+    text: string,
+    type: DraftBlockType,
+  }>,
 };
 
 // https://github.com/facebook/draft-js/issues/1492
@@ -40,9 +42,9 @@ export interface BlockNode {
     callback: (start: number, end: number) => void,
   ) => void,
 
-  +getCharacterList: () => List<CharacterMetadata>,
+  +getCharacterList: () => $ReadOnlyArray<CharacterMetadata>,
 
-  +getData: () => Map<any, any>,
+  +getData: () => $ReadOnlyMap<any, any>,
 
   +getDepth: () => number,
 

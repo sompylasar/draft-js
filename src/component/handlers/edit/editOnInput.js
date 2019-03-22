@@ -16,6 +16,8 @@ import type DraftEditor from 'DraftEditor.react';
 const DraftModifier = require('DraftModifier');
 const DraftOffsetKey = require('DraftOffsetKey');
 const EditorState = require('EditorState');
+const ContentState = require('ContentState');
+const SelectionState = require('SelectionState');
 const UserAgent = require('UserAgent');
 
 const findAncestorOffsetKey = require('findAncestorOffsetKey');
@@ -117,7 +119,7 @@ function editOnInput(editor: DraftEditor): void {
   const selection = editorState.getSelection();
 
   // We'll replace the entire leaf with the text content of the target.
-  const targetRange = selection.merge({
+  const targetRange = SelectionState.set(selection, {
     anchorOffset: start,
     focusOffset: end,
     isBackward: false,
@@ -170,9 +172,12 @@ function editOnInput(editor: DraftEditor): void {
   // Segmented entities are completely or partially removed when their
   // text content changes. For this case we do not want any text to be selected
   // after the change, so we are not merging the selection.
-  const contentWithAdjustedDOMSelection = newContent.merge({
+  const contentWithAdjustedDOMSelection = ContentState.set(newContent, {
     selectionBefore: content.getSelectionAfter(),
-    selectionAfter: selection.merge({anchorOffset, focusOffset}),
+    selectionAfter: SelectionState.set(selection, {
+      anchorOffset,
+      focusOffset,
+    }),
   });
 
   editor.update(

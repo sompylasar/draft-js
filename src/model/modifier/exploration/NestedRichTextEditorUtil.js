@@ -12,21 +12,22 @@
  * production systems. This file may be update/removed without notice.
  */
 import type {BlockMap} from 'BlockMap';
-import type ContentState from 'ContentState';
 import type {DraftBlockType} from 'DraftBlockType';
 import type {DraftEditorCommand} from 'DraftEditorCommand';
 import type {DataObjectForLink, RichTextUtils} from 'RichTextUtils';
-import type SelectionState from 'SelectionState';
 import type URI from 'URI';
 
 const ContentBlockNode = require('ContentBlockNode');
 const DraftModifier = require('DraftModifier');
 const DraftTreeOperations = require('DraftTreeOperations');
 const EditorState = require('EditorState');
+const ContentState = require('ContentState');
+const SelectionState = require('SelectionState');
 const RichTextEditorUtil = require('RichTextEditorUtil');
 
 const adjustBlockDepthForContentState = require('adjustBlockDepthForContentState');
 const generateRandomKey = require('generateRandomKey');
+const inheritAndUpdate = require('inheritAndUpdate');
 const invariant = require('invariant');
 
 // Eventually we could allow to control this list by either allowing user configuration
@@ -89,7 +90,7 @@ const NestedRichTextEditorUtil: RichTextUtils = {
       return null;
     }
 
-    const atomicBlockTarget = selection.merge({
+    const atomicBlockTarget = SelectionState.set(selection, {
       focusKey: blockAfter.getKey(),
       focusOffset: blockAfter.getLength(),
     });
@@ -133,19 +134,22 @@ const NestedRichTextEditorUtil: RichTextUtils = {
 
     // we want to delete that block completely
     if (blockBefore && blockBefore.getType() === 'atomic') {
-      const withoutAtomicBlock = DraftModifier.removeRange(
-        content,
-        selection.merge({
-          focusKey: blockBefore.getKey(),
-          focusOffset: blockBefore.getText().length,
-          anchorKey: startKey,
-          anchorOffset: content.getBlockForKey(startKey).getText().length,
-          isBackward: false,
-        }),
-        'forward',
-      ).merge({
-        selectionAfter: selection,
-      });
+      const withoutAtomicBlock = ContentState.set(
+        DraftModifier.removeRange(
+          content,
+          SelectionState.set(selection, {
+            focusKey: blockBefore.getKey(),
+            focusOffset: blockBefore.getText().length,
+            anchorKey: startKey,
+            anchorOffset: content.getBlockForKey(startKey).getText().length,
+            isBackward: false,
+          }),
+          'forward',
+        ),
+        {
+          selectionAfter: selection,
+        },
+      );
 
       if (withoutAtomicBlock !== content) {
         return EditorState.push(
@@ -200,7 +204,7 @@ const NestedRichTextEditorUtil: RichTextUtils = {
     const selection = editorState.getSelection();
     const content = editorState.getCurrentContent();
     const currentBlock = content.getBlockForKey(selection.getStartKey());
-    const haveChildren = !currentBlock.getChildKeys().isEmpty();
+    const haveChildren = currentBlock.getChildKeys().length > 0;
     const isSelectionCollapsed = selection.isCollapsed();
     const isMultiBlockSelection =
       selection.getAnchorKey() !== selection.getFocusKey();
@@ -227,7 +231,7 @@ const NestedRichTextEditorUtil: RichTextUtils = {
       isUnsupportedNestingBlockType ||
       isMultiBlockSelection ||
       currentBlock.getType() === blockType ||
-      !currentBlock.getChildKeys().isEmpty()
+      currentBlock.getChildKeys().length > 0
     ) {
       return RichTextEditorUtil.toggleBlockType(editorState, blockType);
     }
@@ -359,7 +363,7 @@ const NestedRichTextEditorUtil: RichTextUtils = {
       }
       blockMap = onUntab(blockMap, block);
     }
-    content = editorState.getCurrentContent().merge({
+    content = ContentState.set(editorState.getCurrentContent(), {
       blockMap: blockMap,
     });
 
@@ -402,12 +406,13 @@ const NestedRichTextEditorUtil: RichTextUtils = {
     // set the result as the new inline style override. This will then be
     // used as the inline style for the next character to be inserted.
     if (selection.isCollapsed()) {
-      return EditorState.setInlineStyleOverride(
-        editorState,
-        currentStyle.has(inlineStyle)
-          ? currentStyle.remove(inlineStyle)
-          : currentStyle.add(inlineStyle),
-      );
+      const nextStyle = new Set(currentStyle);
+      if (currentStyle.has(inlineStyle)) {
+        nextStyle.delete(inlineStyle);
+      } else {
+        nextStyle.add(inlineStyle);
+      }
+      return EditorState.setInlineStyleOverride(editorState, nextStyle);
     }
 
     // If characters are selected, immediately apply or remove the
@@ -477,12 +482,12 @@ const NestedRichTextEditorUtil: RichTextUtils = {
           (type === 'unordered-list-item' || type === 'ordered-list-item') &&
           depth > 0
         ) {
-          let newBlockMap = onUntab(content.getBlockMap(), block);
-          newBlockMap = newBlockMap.set(
+          const newBlockMap = new Map(onUntab(content.getBlockMap(), block));
+          newBlockMap.set(
             key,
-            newBlockMap.get(key).merge({depth: depth - 1}),
+            inheritAndUpdate(newBlockMap.get(key), {depth: depth - 1}),
           );
-          return content.merge({blockMap: newBlockMap});
+          return ContentState.set(content, {blockMap: newBlockMap});
         }
         return DraftModifier.setBlockType(content, selection, 'unstyled');
       }
@@ -501,13 +506,17 @@ const onUntab = (blockMap: BlockMap, block: ContentBlockNode): BlockMap => {
   const parent = blockMap.get(parentKey);
   const existingChildren = parent.getChildKeys();
   const blockIndex = existingChildren.indexOf(key);
-  if (blockIndex === 0 || blockIndex === existingChildren.count() - 1) {
+  if (blockIndex === 0 || blockIndex === existingChildren.length - 1) {
     blockMap = DraftTreeOperations.moveChildUp(blockMap, key);
   } else {
     // split the block into [0, blockIndex] in parent & the rest in a new block
     const prevChildren = existingChildren.slice(0, blockIndex + 1);
     const nextChildren = existingChildren.slice(blockIndex + 1);
-    blockMap = blockMap.set(parentKey, parent.merge({children: prevChildren}));
+    const blockMapEntries = [];
+    blockMapEntries.push([
+      parentKey,
+      inheritAndUpdate(parent, {children: prevChildren}),
+    ]);
     const newBlock = new ContentBlockNode({
       key: generateRandomKey(),
       text: '',
@@ -519,29 +528,42 @@ const onUntab = (blockMap: BlockMap, block: ContentBlockNode): BlockMap => {
     // add new block just before its the original next sibling in the block map
     // TODO(T33894878): Remove the map reordering code & fix converter after launch
     invariant(nextSiblingKey != null, 'block must have a next sibling here');
-    const blocks = blockMap.toSeq();
-    blockMap = blocks
-      .takeUntil(block => block.getKey() === nextSiblingKey)
-      .concat(
-        [[newBlock.getKey(), newBlock]],
-        blocks.skipUntil(block => block.getKey() === nextSiblingKey),
-      )
-      .toOrderedMap();
+    let loopState = 0;
+    for (const blockMapEntry of blockMap) {
+      if (loopState === 0 && blockMapEntry[1].getKey() === nextSiblingKey) {
+        ++loopState;
+        blockMapEntries.push([newBlock.getKey(), newBlock]);
+      } else if (
+        loopState === 1 &&
+        blockMapEntry[1].getKey() === nextSiblingKey
+      ) {
+        ++loopState;
+        break;
+      } else if (loopState === 0 || loopState === 1) {
+        blockMapEntries.push(blockMapEntry);
+      }
+    }
 
     // set the nextChildren's parent to the new block
-    blockMap = blockMap.map(
-      block =>
+    Array.from(blockMap.entries()).forEach(blockMapEntry => {
+      const block = blockMapEntry[1];
+      blockMapEntries.push([
+        blockMapEntry[0],
         nextChildren.includes(block.getKey())
-          ? block.merge({parent: newBlock.getKey()})
+          ? inheritAndUpdate(block, {parent: newBlock.getKey()})
           : block,
-    );
+      ]);
+    });
+
     // update the next/previous pointers for the children at the split
-    blockMap = blockMap
-      .set(key, block.merge({nextSibling: null}))
-      .set(
-        nextSiblingKey,
-        blockMap.get(nextSiblingKey).merge({prevSibling: null}),
-      );
+    blockMapEntries.push([key, inheritAndUpdate(block, {nextSibling: null})]);
+    blockMapEntries.push([
+      nextSiblingKey,
+      inheritAndUpdate(blockMap.get(nextSiblingKey), {prevSibling: null}),
+    ]);
+
+    blockMap = new Map(blockMapEntries);
+
     const parentNextSiblingKey = parent.getNextSiblingKey();
     if (parentNextSiblingKey != null) {
       blockMap = DraftTreeOperations.updateSibling(

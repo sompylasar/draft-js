@@ -20,10 +20,7 @@ const ContentBlockNode = require('ContentBlockNode');
 const ContentState = require('ContentState');
 const EditorState = require('EditorState');
 
-const Immutable = require('immutable');
 const moveBlockInContentState = require('moveBlockInContentState');
-
-const {List} = Immutable;
 
 const contentBlocks = [
   new ContentBlock({
@@ -49,7 +46,7 @@ const contentBlockNodes = [
   new ContentBlockNode({
     key: 'B',
     text: '',
-    children: List(['C']),
+    children: ['C'],
     nextSibling: 'D',
     prevSibling: 'A',
   }),
@@ -62,7 +59,7 @@ const contentBlockNodes = [
     key: 'D',
     text: '',
     prevSibling: 'B',
-    children: List(['E']),
+    children: ['E'],
   }),
   new ContentBlockNode({
     key: 'E',

@@ -12,12 +12,9 @@
 'use strict';
 
 import type {BlockNodeRecord} from 'BlockNodeRecord';
-import type ContentState from 'ContentState';
 import type SelectionState from 'SelectionState';
 
-const Immutable = require('immutable');
-
-const {Map} = Immutable;
+const ContentState = require('ContentState');
 
 function modifyBlockForContentState(
   contentState: ContentState,
@@ -27,15 +24,32 @@ function modifyBlockForContentState(
   const startKey = selectionState.getStartKey();
   const endKey = selectionState.getEndKey();
   const blockMap = contentState.getBlockMap();
-  const newBlocks = blockMap
-    .toSeq()
-    .skipUntil((_, k) => k === startKey)
-    .takeUntil((_, k) => k === endKey)
-    .concat(Map([[endKey, blockMap.get(endKey)]]))
-    .map(operation);
 
-  return contentState.merge({
-    blockMap: blockMap.merge(newBlocks),
+  const blockMapUpdatedEntries = [];
+  let loopState = 0;
+  for (const blockMapEntry of blockMap) {
+    if (loopState === 0 && blockMapEntry[0] === startKey) {
+      // skipUntil done
+      ++loopState;
+    } else if (loopState === 1 && blockMapEntry[0] === endKey) {
+      // takeUntil done
+      ++loopState;
+      // concat the endKey block
+      blockMapUpdatedEntries.push([
+        blockMapEntry[0],
+        operation(blockMapEntry[1]),
+      ]);
+    } else if (loopState === 1) {
+      // takeUntil after skipUntil
+      blockMapUpdatedEntries.push([
+        blockMapEntry[0],
+        operation(blockMapEntry[1]),
+      ]);
+    }
+  }
+
+  return ContentState.set(contentState, {
+    blockMap: new Map([...blockMap.entries(), ...blockMapUpdatedEntries]),
     selectionBefore: selectionState,
     selectionAfter: selectionState,
   });

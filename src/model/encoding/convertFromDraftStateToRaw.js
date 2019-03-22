@@ -32,7 +32,10 @@ const createRawBlock = (block: BlockNodeRecord, entityStorageMap: *) => {
     depth: block.getDepth(),
     inlineStyleRanges: encodeInlineStyleRanges(block),
     entityRanges: encodeEntityRanges(block, entityStorageMap),
-    data: block.getData().toObject(),
+    data: Array.from(block.getData().entries()).reduce((data, [key, value]) => {
+      data[key] = value;
+      return data;
+    }, {}),
   };
 };
 

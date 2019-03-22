@@ -18,7 +18,6 @@ const SampleDraftInlineStyle = require('SampleDraftInlineStyle');
 
 const createCharacterList = require('createCharacterList');
 const encodeInlineStyleRanges = require('encodeInlineStyleRanges');
-const Immutable = require('immutable');
 
 const {
   BOLD,
@@ -29,8 +28,6 @@ const {
   ITALIC_UNDERLINE,
   NONE,
 } = SampleDraftInlineStyle;
-
-const {List, OrderedSet, Repeat} = Immutable;
 
 const FOO = OrderedSet.of('foo');
 const FOO_BAR = OrderedSet.of('foo', 'bar');

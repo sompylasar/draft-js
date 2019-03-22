@@ -17,8 +17,6 @@ const CharacterMetadata = require('CharacterMetadata');
 const ContentBlock = require('ContentBlock');
 const {BOLD} = require('SampleDraftInlineStyle');
 
-const Immutable = require('immutable');
-
 const ENTITY_KEY = 'x';
 
 const getSampleBlock = () => {
@@ -26,13 +24,13 @@ const getSampleBlock = () => {
     key: 'a',
     type: 'unstyled',
     text: 'Alpha',
-    characterList: Immutable.List.of(
+    characterList: [
       CharacterMetadata.create({style: BOLD, entity: ENTITY_KEY}),
       CharacterMetadata.EMPTY,
       CharacterMetadata.EMPTY,
       CharacterMetadata.create({style: BOLD}),
       CharacterMetadata.create({entity: ENTITY_KEY}),
-    ),
+    ],
   });
 };
 
@@ -48,17 +46,14 @@ test('must have appropriate default values', () => {
   expect(block.getText()).toMatchSnapshot();
   expect(block.getType()).toMatchSnapshot();
   expect(block.getLength()).toMatchSnapshot();
-  expect(block.getCharacterList().count()).toMatchSnapshot();
-  expect(block.getCharacterList().toJS()).toMatchSnapshot();
+  expect(block.getCharacterList()).toMatchSnapshot();
 });
 
 test('must provide default values', () => {
   const block = new ContentBlock({});
   expect(block.getType()).toMatchSnapshot();
   expect(block.getText()).toMatchSnapshot();
-  expect(
-    Immutable.is(block.getCharacterList(), Immutable.List()),
-  ).toMatchSnapshot();
+  expect(block.getCharacterList()).toMatchSnapshot();
 });
 
 test('must retrieve properties', () => {
@@ -67,14 +62,14 @@ test('must retrieve properties', () => {
   expect(block.getText()).toMatchSnapshot();
   expect(block.getType()).toMatchSnapshot();
   expect(block.getLength()).toMatchSnapshot();
-  expect(block.getCharacterList().count()).toMatchSnapshot();
+  expect(block.getCharacterList()).toMatchSnapshot();
 });
 
 test('must properly retrieve style at offset', () => {
   const block = getSampleBlock();
 
   for (let i = 0; i <= 4; i++) {
-    expect(block.getInlineStyleAt(i).toJS()).toMatchSnapshot();
+    expect(block.getInlineStyleAt(i)).toMatchSnapshot();
   }
 });
 

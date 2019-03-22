@@ -11,8 +11,6 @@
 
 'use strict';
 
-import type {List} from 'immutable';
-
 /**
  * Search through an array to find contiguous stretches of elements that
  * match a specified filter function.
@@ -21,12 +19,12 @@ import type {List} from 'immutable';
  * the values to the caller.
  */
 function findRangesImmutable<T>(
-  haystack: List<T>,
+  haystack: $ReadOnlyArray<T>,
   areEqualFn: (a: T, b: T) => boolean,
   filterFn: (value: T) => boolean,
   foundFn: (start: number, end: number) => void,
 ): void {
-  if (!haystack.size) {
+  if (!haystack.length) {
     return;
   }
 
@@ -42,7 +40,7 @@ function findRangesImmutable<T>(
     return nextValue;
   });
 
-  filterFn(haystack.last()) && foundFn(cursor, haystack.count());
+  filterFn(haystack[haystack.length - 1]) && foundFn(cursor, haystack.length);
 }
 
 module.exports = findRangesImmutable;

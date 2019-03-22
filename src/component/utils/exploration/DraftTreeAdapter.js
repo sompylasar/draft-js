@@ -19,7 +19,7 @@ const generateRandomKey = require('generateRandomKey');
 const invariant = require('invariant');
 
 const traverseInDepthOrder = (
-  blocks: Array<RawDraftContentBlock>,
+  blocks: $ReadOnlyArray<RawDraftContentBlock>,
   fn: (block: RawDraftContentBlock) => void,
 ) => {
   let stack = [...blocks].reverse();
@@ -32,7 +32,7 @@ const traverseInDepthOrder = (
 
     invariant(Array.isArray(children), 'Invalid tree raw block');
 
-    stack = stack.concat([...children.reverse()]);
+    stack = stack.concat([...children].reverse());
   }
 };
 

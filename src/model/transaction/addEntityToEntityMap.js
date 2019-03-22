@@ -12,17 +12,17 @@
 'use strict';
 
 import type DraftEntityInstance from 'DraftEntityInstance';
-import type {OrderedMap} from 'immutable';
-// TODO: when removing the deprecated API update this to use the EntityMap type
-// instead of OrderedMap
+import type {EntityMap} from 'EntityMap';
 
 let key = 0;
 
 function addEntityToEntityMap(
-  entityMap: OrderedMap<*, *>,
+  entityMap: EntityMap,
   instance: DraftEntityInstance,
-): OrderedMap<*, *> {
-  return entityMap.set(`${++key}`, instance);
+): EntityMap {
+  const newEntityMap = Object.create(entityMap);
+  newEntityMap.set(`${++key}`, instance);
+  return newEntityMap;
 }
 
 module.exports = addEntityToEntityMap;

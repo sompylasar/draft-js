@@ -24,8 +24,8 @@ export type RawDraftContentBlock = {
   type: DraftBlockType,
   text: string,
   depth: ?number,
-  inlineStyleRanges: ?Array<InlineStyleRange>,
-  entityRanges: ?Array<EntityRange>,
+  inlineStyleRanges: ?$ReadOnlyArray<InlineStyleRange>,
+  entityRanges: ?$ReadOnlyArray<EntityRange>,
   data?: Object,
-  children?: Array<RawDraftContentBlock>,
+  children?: $ReadOnlyArray<RawDraftContentBlock>,
 };

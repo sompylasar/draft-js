@@ -30,12 +30,9 @@ const decodeEntityRanges = require('decodeEntityRanges');
 const decodeInlineStyleRanges = require('decodeInlineStyleRanges');
 const generateRandomKey = require('generateRandomKey');
 const gkx = require('gkx');
-const Immutable = require('immutable');
 const invariant = require('invariant');
 
 const experimentalTreeDataSupport = gkx('draft_tree_data_support');
-
-const {List, Map, OrderedMap} = Immutable;
 
 const decodeBlockNodeConfig = (
   block: RawDraftContentBlock,
@@ -48,7 +45,7 @@ const decodeBlockNodeConfig = (
     depth: depth || 0,
     type: type || 'unstyled',
     key: key || generateRandomKey(),
-    data: Map(data),
+    data: new Map(data ? Object.keys(data).map(key => [key, data[key]]) : []),
     characterList: decodeCharacterList(block, entityMap),
   };
 
@@ -58,7 +55,7 @@ const decodeBlockNodeConfig = (
 const decodeCharacterList = (
   block: RawDraftContentBlock,
   entityMap: *,
-): List<CharacterMetadata> => {
+): Array<CharacterMetadata> => {
   const {
     text,
     entityRanges: rawEntityRanges,
@@ -115,7 +112,7 @@ const updateNodeStack = (
  * blockMap will be created using depth ordering.
  */
 const decodeContentBlockNodes = (
-  blocks: Array<RawDraftContentBlock>,
+  blocks: $ReadOnlyArray<RawDraftContentBlock>,
   entityMap: *,
 ): BlockMap => {
   return (
@@ -138,11 +135,11 @@ const decodeContentBlockNodes = (
             prevSibling: index === 0 ? null : blocks[index - 1].key,
             nextSibling:
               index === blocks.length - 1 ? null : blocks[index + 1].key,
-            children: List(children.map((child: any) => child.key)),
+            children: children.map((child: any) => child.key),
           });
 
           // push root node to blockMap
-          blockMap = blockMap.set(contentBlockNode.getKey(), contentBlockNode);
+          blockMap.set(contentBlockNode.getKey(), contentBlockNode);
 
           // this stack is used to ensure we visit all nodes respecting depth ordering
           let stack = updateNodeStack([], children, contentBlockNode);
@@ -172,17 +169,14 @@ const decodeContentBlockNodes = (
             const contentBlockNode = new ContentBlockNode({
               ...decodeBlockNodeConfig(node, entityMap),
               parent: parentRef.getKey(),
-              children: List(children.map((child: any) => child.key)),
-              prevSibling: index === 0 ? null : siblings.get(index - 1),
+              children: children.map((child: any) => child.key),
+              prevSibling: index === 0 ? null : siblings[index - 1],
               nextSibling:
-                index === siblings.size - 1 ? null : siblings.get(index + 1),
+                index === siblings.length - 1 ? null : siblings[index + 1],
             });
 
             // push node to blockMap
-            blockMap = blockMap.set(
-              contentBlockNode.getKey(),
-              contentBlockNode,
-            );
+            blockMap.set(contentBlockNode.getKey(), contentBlockNode);
 
             // this stack is used to ensure we visit all nodes respecting depth ordering
             stack = updateNodeStack(stack, children, contentBlockNode);
@@ -190,7 +184,7 @@ const decodeContentBlockNodes = (
 
           return blockMap;
         },
-        OrderedMap(),
+        new Map(),
       )
   );
 };
@@ -199,7 +193,7 @@ const decodeContentBlocks = (
   blocks: Array<RawDraftContentBlock>,
   entityMap: *,
 ): BlockMap => {
-  return OrderedMap(
+  return new Map(
     blocks.map((block: RawDraftContentBlock) => {
       const contentBlock = new ContentBlock(
         decodeBlockNodeConfig(block, entityMap),
@@ -272,9 +266,15 @@ const convertFromRawToDraftState = (
   const blockMap = decodeRawBlocks(rawState, entityMap);
 
   // create initial selection
-  const selectionState = blockMap.isEmpty()
-    ? new SelectionState()
-    : SelectionState.createEmpty(blockMap.first().getKey());
+  const selectionState =
+    blockMap.size > 0
+      ? SelectionState.createEmpty(
+          blockMap
+            .values()
+            .next()
+            .value.getKey(),
+        )
+      : new SelectionState();
 
   return new ContentState({
     blockMap,

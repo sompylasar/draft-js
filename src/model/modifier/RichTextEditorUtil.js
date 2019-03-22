@@ -11,15 +11,15 @@
 
 'use strict';
 
-import type ContentState from 'ContentState';
 import type {DraftBlockType} from 'DraftBlockType';
 import type {DraftEditorCommand} from 'DraftEditorCommand';
 import type {DataObjectForLink, RichTextUtils} from 'RichTextUtils';
-import type SelectionState from 'SelectionState';
 import type URI from 'URI';
 
+const ContentState = require('ContentState');
 const DraftModifier = require('DraftModifier');
 const EditorState = require('EditorState');
+const SelectionState = require('SelectionState');
 
 const adjustBlockDepthForContentState = require('adjustBlockDepthForContentState');
 const nullthrows = require('nullthrows');
@@ -120,9 +120,10 @@ const RichTextEditorUtil: RichTextUtils = {
     const blockBefore = content.getBlockBefore(startKey);
 
     if (blockBefore && blockBefore.getType() === 'atomic') {
-      const blockMap = content.getBlockMap().delete(blockBefore.getKey());
-      const withoutAtomicBlock = content.merge({
-        blockMap,
+      const newBlockMap = new Map(content.getBlockMap());
+      newBlockMap.delete(blockBefore.getKey());
+      const withoutAtomicBlock = ContentState.set(content, {
+        blockMap: newBlockMap,
         selectionAfter: selection,
       });
       if (withoutAtomicBlock !== content) {
@@ -172,7 +173,7 @@ const RichTextEditorUtil: RichTextUtils = {
       return null;
     }
 
-    const atomicBlockTarget = selection.merge({
+    const atomicBlockTarget = SelectionState.set(selection, {
       focusKey: blockAfter.getKey(),
       focusOffset: blockAfter.getLength(),
     });
@@ -242,7 +243,7 @@ const RichTextEditorUtil: RichTextUtils = {
     if (startKey !== endKey && selection.getEndOffset() === 0) {
       const blockBefore = nullthrows(content.getBlockBefore(endKey));
       endKey = blockBefore.getKey();
-      target = target.merge({
+      target = SelectionState.set(target, {
         anchorKey: startKey,
         anchorOffset: selection.getStartOffset(),
         focusKey: endKey,
@@ -251,12 +252,22 @@ const RichTextEditorUtil: RichTextUtils = {
       });
     }
 
-    const hasAtomicBlock = content
-      .getBlockMap()
-      .skipWhile((_, k) => k !== startKey)
-      .reverse()
-      .skipWhile((_, k) => k !== endKey)
-      .some(v => v.getType() === 'atomic');
+    const blockMap = content.getBlockMap();
+    const blockMapEntries = Array.from(blockMap.entries());
+    let hasAtomicBlock = false;
+    let loopState = 0;
+    for (const [key, block] of blockMapEntries) {
+      if (loopState === 0 && key === startKey) {
+        ++loopState;
+      }
+      if (loopState === 1 && block.getType() === 'atomic') {
+        hasAtomicBlock = true;
+        break;
+      }
+      if (loopState === 1 && key === endKey) {
+        break;
+      }
+    }
 
     if (hasAtomicBlock) {
       return editorState;
@@ -303,12 +314,13 @@ const RichTextEditorUtil: RichTextUtils = {
     // set the result as the new inline style override. This will then be
     // used as the inline style for the next character to be inserted.
     if (selection.isCollapsed()) {
-      return EditorState.setInlineStyleOverride(
-        editorState,
-        currentStyle.has(inlineStyle)
-          ? currentStyle.remove(inlineStyle)
-          : currentStyle.add(inlineStyle),
-      );
+      const nextStyle = new Set(currentStyle);
+      if (currentStyle.has(inlineStyle)) {
+        nextStyle.delete(inlineStyle);
+      } else {
+        nextStyle.add(inlineStyle);
+      }
+      return EditorState.setInlineStyleOverride(editorState, nextStyle);
     }
 
     // If characters are selected, immediately apply or remove the

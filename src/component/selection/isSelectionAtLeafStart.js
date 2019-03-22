@@ -13,10 +13,12 @@
 
 import type EditorState from 'EditorState';
 
+const nullthrows = require('nullthrows');
+
 function isSelectionAtLeafStart(editorState: EditorState): boolean {
   const selection = editorState.getSelection();
   const anchorKey = selection.getAnchorKey();
-  const blockTree = editorState.getBlockTree(anchorKey);
+  const blockTree = nullthrows(editorState.getBlockTree(anchorKey));
   const offset = selection.getStartOffset();
 
   let isAtStart = false;

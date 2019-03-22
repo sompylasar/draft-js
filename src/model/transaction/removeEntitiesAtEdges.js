@@ -12,14 +12,14 @@
 'use strict';
 
 import type {BlockNodeRecord} from 'BlockNodeRecord';
-import type ContentState from 'ContentState';
 import type {EntityMap} from 'EntityMap';
 import type SelectionState from 'SelectionState';
-import type {List} from 'immutable';
 
 const CharacterMetadata = require('CharacterMetadata');
+const ContentState = require('ContentState');
 
 const findRangesImmutable = require('findRangesImmutable');
+const inheritAndUpdate = require('inheritAndUpdate');
 const invariant = require('invariant');
 
 function removeEntitiesAtEdges(
@@ -29,7 +29,7 @@ function removeEntitiesAtEdges(
   const blockMap = contentState.getBlockMap();
   const entityMap = contentState.getEntityMap();
 
-  const updatedBlocks = {};
+  const updatedBlockEntries = [];
 
   const startKey = selectionState.getStartKey();
   const startOffset = selectionState.getStartOffset();
@@ -37,7 +37,7 @@ function removeEntitiesAtEdges(
   const updatedStart = removeForBlock(entityMap, startBlock, startOffset);
 
   if (updatedStart !== startBlock) {
-    updatedBlocks[startKey] = updatedStart;
+    updatedBlockEntries.push([startKey, updatedStart]);
   }
 
   const endKey = selectionState.getEndKey();
@@ -50,15 +50,15 @@ function removeEntitiesAtEdges(
   const updatedEnd = removeForBlock(entityMap, endBlock, endOffset);
 
   if (updatedEnd !== endBlock) {
-    updatedBlocks[endKey] = updatedEnd;
+    updatedBlockEntries.push([endKey, updatedEnd]);
   }
 
-  if (!Object.keys(updatedBlocks).length) {
-    return contentState.set('selectionAfter', selectionState);
+  if (!updatedBlockEntries.length) {
+    return ContentState.set(contentState, {selectionAfter: selectionState});
   }
 
-  return contentState.merge({
-    blockMap: blockMap.merge(updatedBlocks),
+  return ContentState.set(contentState, {
+    blockMap: new Map([...blockMap.entries(), ...updatedBlockEntries]),
     selectionAfter: selectionState,
   });
 }
@@ -69,7 +69,7 @@ function removeEntitiesAtEdges(
  * Note: This method requires that the offset be in an entity range.
  */
 function getRemovalRange(
-  characters: List<CharacterMetadata>,
+  characters: $ReadOnlyArray<CharacterMetadata>,
   entityKey: ?string,
   offset: number,
 ): {
@@ -109,9 +109,9 @@ function removeForBlock(
   block: BlockNodeRecord,
   offset: number,
 ): BlockNodeRecord {
-  let chars = block.getCharacterList();
-  const charBefore = offset > 0 ? chars.get(offset - 1) : undefined;
-  const charAfter = offset < chars.count() ? chars.get(offset) : undefined;
+  let chars = Array.from(block.getCharacterList());
+  const charBefore = offset > 0 ? chars[offset - 1] : undefined;
+  const charAfter = offset < chars.length ? chars[offset] : undefined;
   const entityBeforeCursor = charBefore ? charBefore.getEntity() : undefined;
   const entityAfterCursor = charAfter ? charAfter.getEntity() : undefined;
 
@@ -121,11 +121,11 @@ function removeForBlock(
       let {start, end} = getRemovalRange(chars, entityAfterCursor, offset);
       let current;
       while (start < end) {
-        current = chars.get(start);
-        chars = chars.set(start, CharacterMetadata.applyEntity(current, null));
+        current = chars[start];
+        chars[start] = CharacterMetadata.applyEntity(current, null);
         start++;
       }
-      return block.set('characterList', chars);
+      return inheritAndUpdate(block, {characterList: chars});
     }
   }
 

@@ -11,30 +11,31 @@
 
 'use strict';
 
-import type {List} from 'immutable';
-
 /**
  * Maintain persistence for target list when appending and prepending.
  */
 function insertIntoList<T>(
-  targetList: List<T>,
-  toInsert: List<T>,
+  targetList: $ReadOnlyArray<T>,
+  toInsert: $ReadOnlyArray<T>,
   offset: number,
-): List<T> {
-  if (offset === targetList.count()) {
+): $ReadOnlyArray<T> {
+  let returnList: Array<T>;
+  if (offset === targetList.length) {
+    returnList = [...targetList];
     toInsert.forEach(c => {
-      targetList = targetList.push(c);
+      returnList.push(c);
     });
   } else if (offset === 0) {
-    toInsert.reverse().forEach(c => {
-      targetList = targetList.unshift(c);
+    returnList = [...targetList];
+    [...toInsert].reverse().forEach(c => {
+      returnList.unshift(c);
     });
   } else {
     const head = targetList.slice(0, offset);
     const tail = targetList.slice(offset);
-    targetList = head.concat(toInsert, tail).toList();
+    returnList = head.concat(toInsert, tail);
   }
-  return targetList;
+  return returnList;
 }
 
 module.exports = insertIntoList;

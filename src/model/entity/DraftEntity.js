@@ -13,13 +13,10 @@ import type {DraftEntityMutability} from 'DraftEntityMutability';
 import type {DraftEntityType} from 'DraftEntityType';
 
 const DraftEntityInstance = require('DraftEntityInstance');
-const Immutable = require('immutable');
-
+const inheritAndUpdate = require('inheritAndUpdate');
 const invariant = require('invariant');
 
-const {Map} = Immutable;
-
-let instances: Map<string, DraftEntityInstance> = Map();
+let instances: Map<string, DraftEntityInstance> = new Map();
 let instanceKey = 0;
 
 /**
@@ -243,7 +240,7 @@ const DraftEntity: DraftEntityMapObject = {
   ): DraftEntityInstance {
     const instance = DraftEntity.__get(key);
     const newData = {...instance.getData(), ...toMerge};
-    const newInstance = instance.set('data', newData);
+    const newInstance = inheritAndUpdate(instance, {data: newData});
     instances = instances.set(key, newInstance);
     return newInstance;
   },
@@ -256,7 +253,7 @@ const DraftEntity: DraftEntityMapObject = {
     newData: {[key: string]: any},
   ): DraftEntityInstance {
     const instance = DraftEntity.__get(key);
-    const newInstance = instance.set('data', newData);
+    const newInstance = inheritAndUpdate(instance, {data: newData});
     instances = instances.set(key, newInstance);
     return newInstance;
   },

@@ -21,33 +21,20 @@ import type {BlockNode, BlockNodeConfig, BlockNodeKey} from 'BlockNode';
 import type {DraftBlockType} from 'DraftBlockType';
 import type {DraftInlineStyle} from 'DraftInlineStyle';
 
+const {EMPTY_STYLE} = require('DraftInlineStyle');
 const CharacterMetadata = require('CharacterMetadata');
-const Immutable = require('immutable');
 
 const findRangesImmutable = require('findRangesImmutable');
-
-const {List, Map, OrderedSet, Record, Repeat} = Immutable;
+const inheritAndUpdate = require('inheritAndUpdate');
 
 type ContentBlockNodeConfig = BlockNodeConfig & {
-  children?: List<BlockNodeKey>,
-  parent?: ?BlockNodeKey,
-  prevSibling?: ?BlockNodeKey,
-  nextSibling?: ?BlockNodeKey,
-};
-
-const EMPTY_SET = OrderedSet();
-
-const defaultRecord: ContentBlockNodeConfig = {
-  parent: null,
-  characterList: List(),
-  data: Map(),
-  depth: 0,
-  key: '',
-  text: '',
-  type: 'unstyled',
-  children: List(),
-  prevSibling: null,
-  nextSibling: null,
+  // `$Shape` without the spread does not error on missing properties. https://github.com/facebook/flow/issues/5702
+  ...$Shape<{
+    children: $ReadOnlyArray<BlockNodeKey>,
+    parent: ?BlockNodeKey,
+    prevSibling: ?BlockNodeKey,
+    nextSibling: ?BlockNodeKey,
+  }>,
 };
 
 const haveEqualStyle = (
@@ -61,8 +48,8 @@ const haveEqualEntity = (
 ): boolean => charA.getEntity() === charB.getEntity();
 
 const decorateCharacterList = (
-  config: ContentBlockNodeConfig,
-): ContentBlockNodeConfig => {
+  config?: ContentBlockNodeConfig,
+): ?ContentBlockNodeConfig => {
   if (!config) {
     return config;
   }
@@ -70,31 +57,45 @@ const decorateCharacterList = (
   const {characterList, text} = config;
 
   if (text && !characterList) {
-    config.characterList = List(Repeat(CharacterMetadata.EMPTY, text.length));
+    return {
+      ...config,
+      characterList: Array(text.length).fill(CharacterMetadata.EMPTY),
+    };
   }
 
   return config;
 };
 
-class ContentBlockNode extends Record(defaultRecord) implements BlockNode {
-  constructor(props: ContentBlockNodeConfig = defaultRecord) {
-    super(decorateCharacterList(props));
+class ContentBlockNode implements BlockNode {
+  characterList: $ReadOnlyArray<CharacterMetadata> = [];
+  data: $ReadOnlyMap<any, any> = ((new Map(): any): $ReadOnlyMap<any, any>);
+  depth: number = 0;
+  key: BlockNodeKey = '';
+  text: string = '';
+  type: DraftBlockType = 'unstyled';
+  children: $ReadOnlyArray<BlockNodeKey> = [];
+  parent: ?BlockNodeKey = null;
+  prevSibling: ?BlockNodeKey = null;
+  nextSibling: ?BlockNodeKey = null;
+
+  constructor(config?: ContentBlockNodeConfig) {
+    Object.assign(this, config ? decorateCharacterList(config) : undefined);
   }
 
   getKey(): BlockNodeKey {
-    return this.get('key');
+    return this.key;
   }
 
   getType(): DraftBlockType {
-    return this.get('type');
+    return this.type;
   }
 
   getText(): string {
-    return this.get('text');
+    return this.text;
   }
 
-  getCharacterList(): List<CharacterMetadata> {
-    return this.get('characterList');
+  getCharacterList(): $ReadOnlyArray<CharacterMetadata> {
+    return this.characterList;
   }
 
   getLength(): number {
@@ -102,37 +103,37 @@ class ContentBlockNode extends Record(defaultRecord) implements BlockNode {
   }
 
   getDepth(): number {
-    return this.get('depth');
+    return this.depth;
   }
 
-  getData(): Map<any, any> {
-    return this.get('data');
+  getData(): $ReadOnlyMap<any, any> {
+    return this.data;
   }
 
   getInlineStyleAt(offset: number): DraftInlineStyle {
-    const character = this.getCharacterList().get(offset);
-    return character ? character.getStyle() : EMPTY_SET;
+    const character = this.getCharacterList()[offset];
+    return character ? character.getStyle() : EMPTY_STYLE;
   }
 
   getEntityAt(offset: number): ?string {
-    const character = this.getCharacterList().get(offset);
+    const character = this.getCharacterList()[offset];
     return character ? character.getEntity() : null;
   }
 
-  getChildKeys(): List<BlockNodeKey> {
-    return this.get('children');
+  getChildKeys(): $ReadOnlyArray<BlockNodeKey> {
+    return this.children;
   }
 
   getParentKey(): ?BlockNodeKey {
-    return this.get('parent');
+    return this.parent;
   }
 
   getPrevSiblingKey(): ?BlockNodeKey {
-    return this.get('prevSibling');
+    return this.prevSibling;
   }
 
   getNextSiblingKey(): ?BlockNodeKey {
-    return this.get('nextSibling');
+    return this.nextSibling;
   }
 
   findStyleRanges(
@@ -157,6 +158,13 @@ class ContentBlockNode extends Record(defaultRecord) implements BlockNode {
       filterFn,
       callback,
     );
+  }
+
+  static set(
+    block: ContentBlockNode,
+    put: ContentBlockNodeConfig,
+  ): ContentBlockNode {
+    return inheritAndUpdate(block, put);
   }
 }
 

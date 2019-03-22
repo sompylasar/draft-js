@@ -11,7 +11,8 @@
 
 'use strict';
 
-import type ContentState from 'ContentState';
+const ContentState = require('ContentState');
+const inheritAndUpdate = require('inheritAndUpdate');
 
 function updateEntityDataInContentState(
   contentState: ContentState,
@@ -21,11 +22,13 @@ function updateEntityDataInContentState(
 ): ContentState {
   const instance = contentState.getEntity(key);
   const entityData = instance.getData();
+  const entityMap = contentState.getEntityMap();
   const newData = merge ? {...entityData, ...data} : data;
 
-  const newInstance = instance.set('data', newData);
-  const newEntityMap = contentState.getEntityMap().set(key, newInstance);
-  return contentState.set('entityMap', newEntityMap);
+  const newInstance = inheritAndUpdate(instance, {data: newData});
+  const newEntityMap = new Map(entityMap);
+  newEntityMap.set(key, newInstance);
+  return ContentState.set(contentState, {entityMap: newEntityMap});
 }
 
 module.exports = updateEntityDataInContentState;

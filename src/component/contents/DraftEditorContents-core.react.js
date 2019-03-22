@@ -19,6 +19,7 @@ import type {BidiDirection} from 'UnicodeBidiDirection';
 
 const DraftEditorBlock = require('DraftEditorBlock.react');
 const DraftOffsetKey = require('DraftOffsetKey');
+const UnicodeBidiDirection = require('UnicodeBidiDirection');
 const React = require('React');
 
 const cx = require('cx');
@@ -61,8 +62,8 @@ const getListItemClasses = (
     'public/DraftStyleDefault/depth2': depth === 2,
     'public/DraftStyleDefault/depth3': depth === 3,
     'public/DraftStyleDefault/depth4': depth >= 4,
-    'public/DraftStyleDefault/listLTR': direction === 'LTR',
-    'public/DraftStyleDefault/listRTL': direction === 'RTL',
+    'public/DraftStyleDefault/listLTR': direction === UnicodeBidiDirection.LTR,
+    'public/DraftStyleDefault/listRTL': direction === UnicodeBidiDirection.RTL,
   });
 };
 
@@ -162,7 +163,7 @@ class DraftEditorContents extends React.Component<Props> {
 
       const direction = textDirectionality
         ? textDirectionality
-        : directionMap.get(key);
+        : directionMap.get(key) || UnicodeBidiDirection.NEUTRAL;
       const offsetKey = DraftOffsetKey.encode(key, 0, 0);
       const componentProps = {
         contentState: content,
@@ -177,15 +178,17 @@ class DraftEditorContents extends React.Component<Props> {
         key,
         offsetKey,
         selection,
-        tree: editorState.getBlockTree(key),
+        tree: nullthrows(editorState.getBlockTree(key)),
       };
 
       const configForType =
-        blockRenderMap.get(blockType) || blockRenderMap.get('unstyled');
+        blockRenderMap.get(blockType) ||
+        nullthrows(blockRenderMap.get('unstyled'));
       const wrapperTemplate = configForType.wrapper;
 
       const Element =
-        configForType.element || blockRenderMap.get('unstyled').element;
+        configForType.element ||
+        nullthrows(blockRenderMap.get('unstyled')).element;
 
       const depth = block.getDepth();
       let className = '';

@@ -18,7 +18,6 @@ import type {BlockNodeRecord} from 'BlockNodeRecord';
 import type ContentState from 'ContentState';
 import type {DraftDecoratorType} from 'DraftDecoratorType';
 import type {BidiDirection} from 'UnicodeBidiDirection';
-import type {Set} from 'immutable';
 
 const DraftOffsetKey = require('DraftOffsetKey');
 const React = require('React');
@@ -27,13 +26,13 @@ const UnicodeBidiDirection = require('UnicodeBidiDirection');
 
 type Props = {
   block: BlockNodeRecord,
-  children: ?Array<React.Node>,
+  children: ?$ReadOnlyArray<React.Node>,
   contentState: ContentState,
   decorator: DraftDecoratorType,
   decoratorKey: string,
   direction: BidiDirection,
   text: string,
-  leafSet: Set<any>,
+  leafSet: DecoratorRange,
 };
 
 class DraftEditorDecoratedLeaves extends React.Component<Props> {
@@ -50,7 +49,7 @@ class DraftEditorDecoratedLeaves extends React.Component<Props> {
     } = this.props;
 
     const blockKey = block.getKey();
-    const leavesForLeafSet = leafSet.get('leaves');
+    const leavesForLeafSet = leafSet.leaves;
     const DecoratorComponent = decorator.getComponentForKey(decoratorKey);
     const decoratorProps = decorator.getPropsForKey(decoratorKey);
     const decoratorOffsetKey = DraftOffsetKey.encode(
@@ -60,8 +59,8 @@ class DraftEditorDecoratedLeaves extends React.Component<Props> {
     );
 
     const decoratedText = text.slice(
-      leavesForLeafSet.first().get('start'),
-      leavesForLeafSet.last().get('end'),
+      leavesForLeafSet.first().start,
+      leavesForLeafSet.last().end,
     );
 
     // Resetting dir to the same value on a child node makes Chrome/Firefox
@@ -78,7 +77,7 @@ class DraftEditorDecoratedLeaves extends React.Component<Props> {
         decoratedText={decoratedText}
         dir={dir}
         key={decoratorOffsetKey}
-        entityKey={block.getEntityAt(leafSet.get('start'))}
+        entityKey={block.getEntityAt(leafSet.start)}
         offsetKey={decoratorOffsetKey}>
         {children}
       </DecoratorComponent>

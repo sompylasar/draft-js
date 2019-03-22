@@ -14,6 +14,7 @@
 import type DraftEditor from 'DraftEditor.react';
 
 const EditorState = require('EditorState');
+const SelectionState = require('SelectionState');
 const UserAgent = require('UserAgent');
 
 function editOnFocus(editor: DraftEditor, e: SyntheticFocusEvent<>): void {
@@ -23,7 +24,7 @@ function editOnFocus(editor: DraftEditor, e: SyntheticFocusEvent<>): void {
     return;
   }
 
-  const selection = currentSelection.set('hasFocus', true);
+  const selection = SelectionState.set(currentSelection, {hasFocus: true});
   editor.props.onFocus && editor.props.onFocus(e);
 
   // When the tab containing this text editor is hidden and the user does a

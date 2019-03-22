@@ -17,9 +17,6 @@ const ContentBlock = require('ContentBlock');
 
 const createCharacterList = require('createCharacterList');
 const encodeEntityRanges = require('encodeEntityRanges');
-const Immutable = require('immutable');
-
-const {OrderedSet, Repeat} = Immutable;
 
 const createBlock = (text, entities) => {
   const style = OrderedSet();
